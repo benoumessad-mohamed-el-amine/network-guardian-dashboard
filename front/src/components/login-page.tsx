@@ -43,15 +43,9 @@ export function LoginPage() {
         className="w-full max-w-md"
       >
         <div className="mb-8 text-center">
-          {needsSetup ? (
-            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10 border border-primary/20">
-              <UserPlus className="h-6 w-6 text-primary" />
-            </div>
-          ) : (
-            <div className="mx-auto mb-4 flex h-12 items-center justify-center">
-              <img src={logoUrl} alt="Soficlef" className="h-8 w-auto object-contain" />
-            </div>
-          )}
+          <div className="mx-auto mb-4 flex h-12 items-center justify-center">
+            <img src={logoUrl} alt="Soficlef" className="h-8 w-auto object-contain" />
+          </div>
           <h1 className="text-2xl font-bold tracking-tight text-foreground">
             {needsSetup ? "Initial System Setup" : "Sentinel Flow IDS"}
           </h1>
@@ -123,7 +117,7 @@ export function LoginPage() {
         </div>
 
         <p className="mt-8 text-center text-xs text-muted-foreground">
-          &copy; 2024 Soficlef Sentinel Security Systems. All rights reserved.
+          &copy; 2026 Soficlef Sentinel Security Systems. All rights reserved.
         </p>
       </motion.div>
     </div>
