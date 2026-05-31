@@ -7,18 +7,27 @@ import numpy as np
 from .model_base import BaseModel, FeatureDict, InferenceResult
 THRESHOLD_FILE = os.path.join(os.path.dirname(__file__), 'threshold.txt')
 
+_cached_threshold = None
+
 def get_anomaly_threshold() -> float:
+    global _cached_threshold
+    if _cached_threshold is not None:
+        return _cached_threshold
     try:
         if os.path.exists(THRESHOLD_FILE):
             with open(THRESHOLD_FILE, 'r') as f:
                 val = float(f.read().strip())
                 if 0.0 <= val <= 1.0:
+                    _cached_threshold = val
                     return val
     except Exception:
         pass
+    _cached_threshold = 0.85
     return 0.85
 
 def set_anomaly_threshold(val: float) -> None:
+    global _cached_threshold
+    _cached_threshold = val
     try:
         with open(THRESHOLD_FILE, 'w') as f:
             f.write(f"{val:.4f}")
