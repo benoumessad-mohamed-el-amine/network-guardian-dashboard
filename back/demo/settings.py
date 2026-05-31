@@ -109,7 +109,50 @@ AUTH_PASSWORD_VALIDATORS = [
 
 LANGUAGE_CODE = 'en-us'
 
-TIME_ZONE = 'UTC'
+# Dynamically detect system timezone name
+def _get_system_timezone():
+    import sys
+    if sys.platform == 'win32':
+        try:
+            import winreg
+            key = winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, r"SYSTEM\CurrentControlSet\Control\TimeZoneInformation")
+            tz_name, _ = winreg.QueryValueEx(key, "TimeZoneKeyName")
+            mapping = {
+                'Romance Standard Time': 'Europe/Paris',
+                'W. Europe Standard Time': 'Europe/Berlin',
+                'GMT Standard Time': 'Europe/London',
+                'GTB Standard Time': 'Europe/Athens',
+                'E. Europe Standard Time': 'Europe/Bucharest',
+                'FLE Standard Time': 'Europe/Helsinki',
+                'Central Europe Standard Time': 'Europe/Belgrade',
+                'Eastern Standard Time': 'America/New_York',
+                'Central Standard Time': 'America/Chicago',
+                'Mountain Standard Time': 'America/Denver',
+                'Pacific Standard Time': 'America/Los_Angeles',
+                'China Standard Time': 'Asia/Shanghai',
+                'Tokyo Standard Time': 'Asia/Tokyo',
+                'AUS Eastern Standard Time': 'Australia/Sydney',
+                'UTC': 'UTC'
+            }
+            return mapping.get(tz_name, 'Europe/Paris')
+        except Exception:
+            pass
+    else:
+        try:
+            import os
+            if os.path.exists('/etc/timezone'):
+                with open('/etc/timezone', 'r') as f:
+                    return f.read().strip()
+            if os.path.islink('/etc/localtime'):
+                path = os.readlink('/etc/localtime')
+                parts = path.split('/')
+                if len(parts) >= 2:
+                    return f"{parts[-2]}/{parts[-1]}"
+        except Exception:
+            pass
+    return 'Europe/Paris'
+
+TIME_ZONE = _get_system_timezone()
 
 USE_I18N = True
 

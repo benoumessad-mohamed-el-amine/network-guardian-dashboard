@@ -22,8 +22,8 @@ class PacketAnalysisService:
         result = self.engine.analyze_packet(packet)
 
         packet_timestamp = result.features.get('timestamp', time.time())
-        # Convert float timestamp to timezone-aware UTC datetime
-        dt_timestamp = datetime.fromtimestamp(packet_timestamp, tz=timezone.UTC)
+        # Convert float timestamp to timezone-aware system datetime
+        dt_timestamp = datetime.fromtimestamp(packet_timestamp, tz=timezone.get_current_timezone())
 
         traffic_log = TrafficLog.objects.create(
             src_ip=result.features.get('src_ip', '0.0.0.0'),
@@ -90,7 +90,7 @@ class PacketAnalysisService:
         for packet in packets:
             result = self.engine.analyze_packet(packet)
             packet_timestamp = result.features.get('timestamp', time.time())
-            dt_timestamp = datetime.fromtimestamp(packet_timestamp, tz=timezone.UTC)
+            dt_timestamp = datetime.fromtimestamp(packet_timestamp, tz=timezone.get_current_timezone())
             
             log = TrafficLog(
                 src_ip=result.features.get('src_ip', '0.0.0.0'),
