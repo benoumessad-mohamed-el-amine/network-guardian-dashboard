@@ -7,3 +7,8 @@ try:
         ct._RemainderColsList = DummyRemainderColsList
 except ImportError:
     pass
+
+# Suppress noisy warnings
+import warnings
+warnings.filterwarnings("ignore", category=UserWarning, module="sklearn")
+warnings.filterwarnings("ignore", category=ResourceWarning)
