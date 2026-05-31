@@ -114,10 +114,10 @@ class DDoSClassifierRF(RandomForestModel):
         return meta
 
 
-class BotnetClassifierRF(RandomForestModel):
+class BruteForceClassifierRF(RandomForestModel):
     def metadata(self) -> Dict[str, Any]:
         meta = super().metadata()
-        meta.update({'name': 'BotnetClassifierRF', 'role': 'tier_2_botnet_detector'})
+        meta.update({'name': 'BruteForceClassifierRF', 'role': 'tier_2_bruteforce_detector'})
         return meta
 
 
@@ -128,7 +128,7 @@ class HierarchicalIDSClassifier(BaseModel):
         self.scaler = None
         self.binary_model = None
         self.synflood_model = None
-        self.botnet_model = None
+        self.bruteforce_model = None
         self.ddos_model = None
         self.portscan_model = None
         self.loaded = False
@@ -157,7 +157,7 @@ class HierarchicalIDSClassifier(BaseModel):
         scaler_path = os.path.join(model_dir, 'network_scaler.pkl')
         binary_path = os.path.join(model_dir, 'binary_anomaly_rf.pkl')
         synflood_path = os.path.join(model_dir, 'synflood_rf.pkl')
-        botnet_path = os.path.join(model_dir, 'botnet_rf.pkl')
+        bruteforce_path = os.path.join(model_dir, 'bruteforce_rf.pkl')
         ddos_path = os.path.join(model_dir, 'ddos_rf.pkl')
         portscan_path = os.path.join(model_dir, 'portscan_rf.pkl')
 
@@ -174,8 +174,8 @@ class HierarchicalIDSClassifier(BaseModel):
         # Load Tier 2 specialized models (gracefully fallback to None if missing)
         if os.path.exists(synflood_path):
             self.synflood_model = joblib.load(synflood_path)
-        if os.path.exists(botnet_path):
-            self.botnet_model = joblib.load(botnet_path)
+        if os.path.exists(bruteforce_path):
+            self.bruteforce_model = joblib.load(bruteforce_path)
         if os.path.exists(ddos_path):
             self.ddos_model = joblib.load(ddos_path)
         if os.path.exists(portscan_path):
@@ -206,36 +206,46 @@ class HierarchicalIDSClassifier(BaseModel):
         if binary_pred == 0:
             return InferenceResult(label='normal', score=1.0 - anomaly_score, features=features)
 
-        # 4. Tier 2: Route anomaly to subclass classifiers
-        scores: Dict[str, float] = {}
+        # 4. Tier 2: Attack classification (multi-model)
+        # All 4 models run in parallel on the same feature vector
+        positives: Dict[str, float] = {}
 
         if self.synflood_model is not None:
-            syn_probs = self.synflood_model.predict_proba(X_scaled)[0]
-            scores['SYNC FLOOD'] = float(syn_probs[1]) if len(syn_probs) > 1 else float(syn_probs[0])
+            pred = self.synflood_model.predict(X_scaled)[0]
+            probs = self.synflood_model.predict_proba(X_scaled)[0]
+            score = float(probs[1]) if len(probs) > 1 else float(probs[0])
+            if pred == 1:
+                positives['sync flood'] = score
 
-        if self.botnet_model is not None:
-            bot_probs = self.botnet_model.predict_proba(X_scaled)[0]
-            scores['BOTNET'] = float(bot_probs[1]) if len(bot_probs) > 1 else float(bot_probs[0])
+        if self.bruteforce_model is not None:
+            pred = self.bruteforce_model.predict(X_scaled)[0]
+            probs = self.bruteforce_model.predict_proba(X_scaled)[0]
+            score = float(probs[1]) if len(probs) > 1 else float(probs[0])
+            if pred == 1:
+                positives['brute force'] = score
 
         if self.ddos_model is not None:
-            ddos_probs = self.ddos_model.predict_proba(X_scaled)[0]
-            scores['DDOS'] = float(ddos_probs[1]) if len(ddos_probs) > 1 else float(ddos_probs[0])
+            pred = self.ddos_model.predict(X_scaled)[0]
+            probs = self.ddos_model.predict_proba(X_scaled)[0]
+            score = float(probs[1]) if len(probs) > 1 else float(probs[0])
+            if pred == 1:
+                positives['ddos'] = score
 
         if self.portscan_model is not None:
-            port_probs = self.portscan_model.predict_proba(X_scaled)[0]
-            scores['PORTSCAN'] = float(port_probs[1]) if len(port_probs) > 1 else float(port_probs[0])
+            pred = self.portscan_model.predict(X_scaled)[0]
+            probs = self.portscan_model.predict_proba(X_scaled)[0]
+            score = float(probs[1]) if len(probs) > 1 else float(probs[0])
+            if pred == 1:
+                positives['portscan'] = score
 
-        if scores:
-            best_label = max(scores, key=scores.get)
-            best_score = scores[best_label]
-
-            # If the highest probability is below 0.5, default to generic anomaly label
-            if best_score < 0.5:
-                return InferenceResult(label='attack', score=anomaly_score, features=features)
-            else:
-                return InferenceResult(label=best_label.lower(), score=best_score, features=features)
+        # Decision: "Any model positive?"
+        if positives:
+            best_label = max(positives, key=positives.get)
+            best_score = positives[best_label]
+            return InferenceResult(label=best_label, score=best_score, features=features)
         else:
-            return InferenceResult(label='attack', score=anomaly_score, features=features)
+            # "Classify: Unknown threat"
+            return InferenceResult(label='unknown', score=anomaly_score, features=features)
 
     def metadata(self) -> Dict[str, Any]:
         return {
@@ -244,7 +254,7 @@ class HierarchicalIDSClassifier(BaseModel):
             'loaded_submodels': {
                 'binary_anomaly': self.binary_model is not None,
                 'synflood': self.synflood_model is not None,
-                'botnet': self.botnet_model is not None,
+                'bruteforce': self.bruteforce_model is not None,
                 'ddos': self.ddos_model is not None,
                 'portscan': self.portscan_model is not None,
             }

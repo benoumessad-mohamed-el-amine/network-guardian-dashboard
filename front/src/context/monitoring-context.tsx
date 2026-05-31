@@ -36,7 +36,7 @@ export interface TrafficPoint {
 
 interface MonitoringState {
   running: boolean;
-  toggle: () => void;
+  toggle: (selectedInterface?: string) => void;
   packets: number;
   kbps: number;
   totalBytes: number;
@@ -170,12 +170,12 @@ export function MonitoringProvider({ children }: { children: React.ReactNode }) 
     });
   }, [kbps]);
 
-  const toggle = async () => {
+  const toggle = async (selectedInterface?: string) => {
     try {
       if (running) {
         await api.post("/sniffer/stop/");
       } else {
-        await api.post("/sniffer/start/", { interface: "any" });
+        await api.post("/sniffer/start/", { interface: selectedInterface || "any" });
       }
       await fetchStatus();
     } catch (err) {

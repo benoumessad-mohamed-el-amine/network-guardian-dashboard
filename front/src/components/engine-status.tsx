@@ -2,14 +2,62 @@ import { Play, Square } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useMonitoring } from "@/context/monitoring-context";
 import { cn } from "@/lib/utils";
-
+import { useState } from "react";
 import { useAuth } from "@/context/auth-context";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
 
 export function EngineStatus() {
   const { running, toggle } = useMonitoring();
   const { user } = useAuth();
+  const [selectedInterface, setSelectedInterface] = useState("any");
+  const [customInterface, setCustomInterface] = useState("");
+
+  const handleToggle = () => {
+    if (running) {
+      toggle();
+    } else {
+      const iface = selectedInterface === "custom" ? customInterface : selectedInterface;
+      toggle(iface || "any");
+    }
+  };
+
   return (
     <div className="flex items-center gap-3">
+      {/* Interface selection when idle */}
+      {!running && user?.is_staff && (
+        <div className="flex items-center gap-2">
+          <Select value={selectedInterface} onValueChange={setSelectedInterface}>
+            <SelectTrigger className="w-[180px] h-9 bg-card border-border text-xs">
+              <SelectValue placeholder="Select Interface" />
+            </SelectTrigger>
+            <SelectContent className="bg-card border-border text-xs">
+              <SelectItem value="any">Auto (Any Interface)</SelectItem>
+              <SelectItem value="eth0">Ethernet (eth0)</SelectItem>
+              <SelectItem value="wlan0">Wireless / WiFi (wlan0)</SelectItem>
+              <SelectItem value="mon0">WiFi Monitor (mon0)</SelectItem>
+              <SelectItem value="custom">Custom Interface...</SelectItem>
+            </SelectContent>
+          </Select>
+
+          {selectedInterface === "custom" && (
+            <Input
+              placeholder="e.g. wlan1"
+              value={customInterface}
+              onChange={(e) => setCustomInterface(e.target.value)}
+              className="w-[100px] h-9 text-xs bg-card border-border"
+            />
+          )}
+        </div>
+      )}
+
+      {/* Engine status indicator */}
       <div className="flex items-center gap-2 rounded-md border border-border bg-card/50 px-3 py-1.5">
         <span className="relative flex h-2 w-2">
           {running && (
@@ -29,11 +77,12 @@ export function EngineStatus() {
           {running ? "Monitoring" : "Idle"}
         </span>
       </div>
+
       {user?.is_staff && (
         <Button
           size="sm"
           variant={running ? "destructive" : "default"}
-          onClick={toggle}
+          onClick={handleToggle}
           className="gap-2"
         >
           {running ? <Square className="h-3.5 w-3.5" /> : <Play className="h-3.5 w-3.5" />}

@@ -124,7 +124,7 @@ classDiagram
         +predict(features) InferenceResult
     }
 
-    class BotnetClassifierRF {
+    class BruteForceClassifierRF {
         +load(model_path) void
         +predict(features) InferenceResult
     }
@@ -133,7 +133,7 @@ classDiagram
         +Any scaler
         +BinaryAnomalyClassifierRF binary_model
         +SynFloodClassifierRF synflood_model
-        +BotnetClassifierRF botnet_model
+        +BruteForceClassifierRF bruteforce_model
         +DDoSClassifierRF ddos_model
         +PortscanClassifierRF portscan_model
         +boolean loaded
@@ -184,10 +184,10 @@ classDiagram
     RandomForestModel <|-- PortscanClassifierRF : extends
     RandomForestModel <|-- SynFloodClassifierRF : extends
     RandomForestModel <|-- DDoSClassifierRF : extends
-    RandomForestModel <|-- BotnetClassifierRF : extends
+    RandomForestModel <|-- BruteForceClassifierRF : extends
     HierarchicalIDSClassifier *-- BinaryAnomalyClassifierRF : composes
     HierarchicalIDSClassifier *-- SynFloodClassifierRF : composes
-    HierarchicalIDSClassifier *-- BotnetClassifierRF : composes
+    HierarchicalIDSClassifier *-- BruteForceClassifierRF : composes
     HierarchicalIDSClassifier *-- DDoSClassifierRF : composes
     HierarchicalIDSClassifier *-- PortscanClassifierRF : composes
     InferenceEngine --> BaseModel : uses
@@ -218,7 +218,7 @@ classDiagram
     *   `PortscanClassifierRF`: Classifies Portscan intrusion signatures.
     *   `SynFloodClassifierRF`: Classifies SYN Flood DDoS signatures.
     *   `DDoSClassifierRF`: Classifies general DDoS traffic anomalies.
-    *   `BotnetClassifierRF`: Classifies Botnet communication signatures.
+    *   `BruteForceClassifierRF`: Classifies Brute Force intrusion signatures.
 *   **InferenceEngine**: Bridges feature extraction and model prediction by converting raw packet packets to normalized features and feeding them to the active model.
 *   **PacketAnalysisService**: Orchestrates the workflow: passes incoming packets to the `InferenceEngine`, saves the resulting `TrafficLog` and `Alert` records, and dispatches external notifications if an attack is identified.
 

@@ -54,14 +54,21 @@ class PacketAnalysisService:
                 'PORTSCAN': 'Portscan Intrusion Detected',
                 'SYNC FLOOD': 'SYN Flood DDoS Attack',
                 'DDOS': 'DDoS Attack Detected',
+                'BRUTE FORCE': 'Brute Force Attack Detected',
+                'UNKNOWN': 'Unknown Anomaly Detected',
                 'ATTACK': 'Detected Intrusion Attempt'
             }
             label_upper = result.label.upper()
             title = title_map.get(label_upper, f'{result.label} Intrusion Detected')
 
+            if label_upper == 'UNKNOWN':
+                description = 'An unknown anomaly was detected. Check network configuration.'
+            else:
+                description = f'An active {result.label} attack was detected with confidence {result.score:.2f}.'
+
             alert = Alert.objects.create(
                 title=title,
-                description=f'An active {result.label} attack was detected with confidence {result.score:.2f}.',
+                description=description,
                 severity=self._severity_from_score(result.score),
                 source_ip=result.features.get('src_ip', '0.0.0.0'),
                 traffic_log=traffic_log,
@@ -109,6 +116,8 @@ class PacketAnalysisService:
             'PORTSCAN': 'Portscan Intrusion Detected',
             'SYNC FLOOD': 'SYN Flood DDoS Attack',
             'DDOS': 'DDoS Attack Detected',
+            'BRUTE FORCE': 'Brute Force Attack Detected',
+            'UNKNOWN': 'Unknown Anomaly Detected',
             'ATTACK': 'Detected Intrusion Attempt'
         }
         
@@ -118,9 +127,14 @@ class PacketAnalysisService:
                 label_upper = log.predicted_label.upper()
                 title = title_map.get(label_upper, f'{log.predicted_label} Intrusion Detected')
                 
+                if label_upper == 'UNKNOWN':
+                    description = 'An unknown anomaly was detected. Check network configuration.'
+                else:
+                    description = f'An active {log.predicted_label} attack was detected with confidence {log.confidence_score:.2f}.'
+
                 alert = Alert(
                     title=title,
-                    description=f'An active {log.predicted_label} attack was detected with confidence {log.confidence_score:.2f}.',
+                    description=description,
                     severity=self._severity_from_score(log.confidence_score),
                     source_ip=log.src_ip,
                     traffic_log=log,

@@ -139,7 +139,7 @@ package "ML Inference Pipeline" as MLPipeline {
         + predict(features: Dict) : InferenceResult
     }
 
-    class BotnetClassifierRF {
+    class BruteForceClassifierRF {
         + load(model_path: String) : void
         + predict(features: Dict) : InferenceResult
     }
@@ -148,7 +148,7 @@ package "ML Inference Pipeline" as MLPipeline {
         + scaler : Any
         + binary_model : BinaryAnomalyClassifierRF
         + synflood_model : SynFloodClassifierRF
-        + botnet_model : BotnetClassifierRF
+        + bruteforce_model : BruteForceClassifierRF
         + ddos_model : DDoSClassifierRF
         + portscan_model : PortscanClassifierRF
         + loaded : boolean
@@ -204,10 +204,10 @@ RandomForestModel <|-- BinaryAnomalyClassifierRF
 RandomForestModel <|-- PortscanClassifierRF
 RandomForestModel <|-- SynFloodClassifierRF
 RandomForestModel <|-- DDoSClassifierRF
-RandomForestModel <|-- BotnetClassifierRF
+RandomForestModel <|-- BruteForceClassifierRF
 HierarchicalIDSClassifier *-- BinaryAnomalyClassifierRF : composes >
 HierarchicalIDSClassifier *-- SynFloodClassifierRF : composes >
-HierarchicalIDSClassifier *-- BotnetClassifierRF : composes >
+HierarchicalIDSClassifier *-- BruteForceClassifierRF : composes >
 HierarchicalIDSClassifier *-- DDoSClassifierRF : composes >
 HierarchicalIDSClassifier *-- PortscanClassifierRF : composes >
 
