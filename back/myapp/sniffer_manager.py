@@ -131,15 +131,16 @@ class SnifferManager:
         def run_sniff():
             logger.info(f"Starting background sniffer on {self._interface or 'default'}...")
             try:
-                sniff(
-                    iface=self._interface, 
-                    prn=process_packet, 
-                    stop_filter=lambda x: self._stop_event.is_set(), 
-                    store=0,
-                    promisc=True,
-                    filter="ip or ip6",
-                    timeout=2.0  # Allow Scapy loop to check stop_filter every 2 seconds
-                )
+                while not self._stop_event.is_set():
+                    sniff(
+                        iface=self._interface, 
+                        prn=process_packet, 
+                        stop_filter=lambda x: self._stop_event.is_set(), 
+                        store=0,
+                        promisc=True,
+                        filter="ip or ip6",
+                        timeout=2.0  # Keep checking stop_event every 2 seconds
+                    )
             except Exception as e:
                 logger.error(f"Sniffer thread crashed: {e}")
             finally:
