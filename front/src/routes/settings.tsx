@@ -84,16 +84,16 @@ function SettingsPage() {
               </div>
               <div>
                 <h2 className="text-base font-semibold">IDS Detection Sensitivity</h2>
-                <p className="text-xs text-muted-foreground">Adjust the threshold of the Tier 1 Anomaly Detector.</p>
+                <p className="text-xs text-muted-foreground">Controls unknown anomaly sensitivity. Attack-specific detectors (portscan, DDoS, etc.) are unaffected.</p>
               </div>
             </div>
 
             <div className="space-y-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <span className="text-sm font-medium">Anomaly Threshold</span>
+                  <span className="text-sm font-medium">Unknown Anomaly Threshold</span>
                   <p className="text-xs text-muted-foreground mt-0.5">
-                    Higher values reduce false positive alerts from normal background traffic.
+                    Higher values reduce false "Unknown Anomaly" alerts. Attack-type detections are always active.
                   </p>
                 </div>
                 <span className="text-lg font-bold text-primary font-mono">

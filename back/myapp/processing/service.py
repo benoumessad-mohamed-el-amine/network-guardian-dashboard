@@ -54,7 +54,6 @@ class PacketAnalysisService:
                 'PORTSCAN': 'Portscan Intrusion Detected',
                 'SYNC FLOOD': 'SYN Flood DDoS Attack',
                 'DDOS': 'DDoS Attack Detected',
-                'BRUTE FORCE': 'Brute Force Attack Detected',
                 'UNKNOWN': 'Unknown Anomaly Detected',
                 'ATTACK': 'Detected Intrusion Attempt'
             }
@@ -116,7 +115,6 @@ class PacketAnalysisService:
             'PORTSCAN': 'Portscan Intrusion Detected',
             'SYNC FLOOD': 'SYN Flood DDoS Attack',
             'DDOS': 'DDoS Attack Detected',
-            'BRUTE FORCE': 'Brute Force Attack Detected',
             'UNKNOWN': 'Unknown Anomaly Detected',
             'ATTACK': 'Detected Intrusion Attempt'
         }

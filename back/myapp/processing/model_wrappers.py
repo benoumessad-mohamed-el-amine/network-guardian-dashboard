@@ -149,11 +149,6 @@ class DDoSClassifierRF(RandomForestModel):
         return meta
 
 
-class BruteForceClassifierRF(RandomForestModel):
-    def metadata(self) -> Dict[str, Any]:
-        meta = super().metadata()
-        meta.update({'name': 'BruteForceClassifierRF', 'role': 'tier_2_bruteforce_detector'})
-        return meta
 
 
 class HierarchicalIDSClassifier(BaseModel):
@@ -163,7 +158,6 @@ class HierarchicalIDSClassifier(BaseModel):
         self.scaler = None
         self.binary_model = None
         self.synflood_model = None
-        self.bruteforce_model = None
         self.ddos_model = None
         self.portscan_model = None
         self.loaded = False
@@ -192,7 +186,6 @@ class HierarchicalIDSClassifier(BaseModel):
         scaler_path = os.path.join(model_dir, 'network_scaler.pkl')
         binary_path = os.path.join(model_dir, 'binary_anomaly_rf.pkl')
         synflood_path = os.path.join(model_dir, 'synflood_rf.pkl')
-        bruteforce_path = os.path.join(model_dir, 'bruteforce_rf.pkl')
         ddos_path = os.path.join(model_dir, 'ddos_rf.pkl')
         portscan_path = os.path.join(model_dir, 'portscan_rf.pkl')
 
@@ -209,8 +202,6 @@ class HierarchicalIDSClassifier(BaseModel):
         # Load Tier 2 specialized models (gracefully fallback to None if missing)
         if os.path.exists(synflood_path):
             self.synflood_model = joblib.load(synflood_path)
-        if os.path.exists(bruteforce_path):
-            self.bruteforce_model = joblib.load(bruteforce_path)
         if os.path.exists(ddos_path):
             self.ddos_model = joblib.load(ddos_path)
         if os.path.exists(portscan_path):
@@ -233,18 +224,12 @@ class HierarchicalIDSClassifier(BaseModel):
         # 2. Preprocess features using the ColumnTransformer
         X_scaled = self.scaler.transform(df)
 
-        # 3. Tier 1 classification: Anomaly vs Normal
+        # 3. Tier 1 classification: Get anomaly score (used for fallback gating)
         binary_probs = self.binary_model.predict_proba(X_scaled)[0]
         anomaly_score = float(binary_probs[1]) if len(binary_probs) > 1 else float(binary_probs[0])
 
-        threshold = get_anomaly_threshold()
-        binary_pred = 1 if anomaly_score >= threshold else 0
-
-        if binary_pred == 0:
-            return InferenceResult(label='normal', score=1.0 - anomaly_score, features=features)
-
-        # 4. Tier 2: Attack classification (multi-model)
-        # All 4 models run in parallel on the same feature vector
+        # 4. Tier 2: ALWAYS run all specialized classifiers regardless of Tier 1
+        #    The specialist models are authoritative for their attack types.
         positives: Dict[str, float] = {}
 
         if self.synflood_model is not None:
@@ -254,12 +239,6 @@ class HierarchicalIDSClassifier(BaseModel):
             if pred == 1:
                 positives['sync flood'] = score
 
-        if self.bruteforce_model is not None:
-            pred = self.bruteforce_model.predict(X_scaled)[0]
-            probs = self.bruteforce_model.predict_proba(X_scaled)[0]
-            score = float(probs[1]) if len(probs) > 1 else float(probs[0])
-            if pred == 1:
-                positives['brute force'] = score
 
         if self.ddos_model is not None:
             pred = self.ddos_model.predict(X_scaled)[0]
@@ -275,14 +254,22 @@ class HierarchicalIDSClassifier(BaseModel):
             if pred == 1:
                 positives['portscan'] = score
 
-        # Decision: "Any model positive?"
+        # 5. Decision logic:
+        #    - If ANY Tier 2 specialist fires → classify as that attack (Tier 2 is authoritative)
+        #    - If NO specialist fires AND Tier 1 anomaly is above threshold → "unknown anomaly"
+        #    - Otherwise → normal
         if positives:
             best_label = max(positives, key=positives.get)
             best_score = positives[best_label]
             return InferenceResult(label=best_label, score=best_score, features=features)
-        else:
-            # "Classify: Unknown threat"
+
+        threshold = get_anomaly_threshold()
+        if anomaly_score >= threshold:
+            # Tier 1 says anomalous but no specialist claimed it
             return InferenceResult(label='unknown', score=anomaly_score, features=features)
+
+        # Both tiers agree: normal traffic
+        return InferenceResult(label='normal', score=1.0 - anomaly_score, features=features)
 
     def metadata(self) -> Dict[str, Any]:
         return {
@@ -291,7 +278,6 @@ class HierarchicalIDSClassifier(BaseModel):
             'loaded_submodels': {
                 'binary_anomaly': self.binary_model is not None,
                 'synflood': self.synflood_model is not None,
-                'bruteforce': self.bruteforce_model is not None,
                 'ddos': self.ddos_model is not None,
                 'portscan': self.portscan_model is not None,
             }

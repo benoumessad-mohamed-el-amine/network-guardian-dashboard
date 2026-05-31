@@ -9,7 +9,6 @@ from .model_wrappers import (
     PortscanClassifierRF,
     SynFloodClassifierRF,
     DDoSClassifierRF,
-    BruteForceClassifierRF,
     HierarchicalIDSClassifier
 )
 from .model_base import BaseModel
@@ -24,7 +23,6 @@ def create_model(model_type: str, **kwargs: Any) -> BaseModel:
         'portscan_rf': PortscanClassifierRF,
         'synflood_rf': SynFloodClassifierRF,
         'ddos_rf': DDoSClassifierRF,
-        'bruteforce_rf': BruteForceClassifierRF,
     }
     model_type = model_type.lower()
     if model_type not in registry:
