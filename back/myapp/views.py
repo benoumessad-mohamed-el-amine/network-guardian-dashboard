@@ -263,3 +263,22 @@ def api_sniffer_status(request):
 @permission_classes([IsAdminUser])
 def api_sniffer_interfaces(request):
     return Response(sniffer_manager.interfaces())
+
+
+from .processing import model_wrappers
+
+@csrf_exempt
+@api_view(['GET', 'POST'])
+@permission_classes([IsAdminUser])
+def api_sniffer_threshold(request):
+    if request.method == 'POST':
+        try:
+            val = float(request.data.get('threshold'))
+            if 0.0 <= val <= 1.0:
+                model_wrappers.ANOMALY_THRESHOLD = val
+                return Response({'threshold': model_wrappers.ANOMALY_THRESHOLD})
+            return Response({'error': 'Threshold must be between 0.0 and 1.0'}, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+    else:
+        return Response({'threshold': model_wrappers.ANOMALY_THRESHOLD})

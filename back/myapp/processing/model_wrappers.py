@@ -6,6 +6,8 @@ import numpy as np
 
 from .model_base import BaseModel, FeatureDict, InferenceResult
 
+ANOMALY_THRESHOLD = 0.80
+
 
 class MockModel(BaseModel):
     def __init__(self) -> None:
@@ -199,9 +201,11 @@ class HierarchicalIDSClassifier(BaseModel):
         X_scaled = self.scaler.transform(df)
 
         # 3. Tier 1 classification: Anomaly vs Normal
-        binary_pred = self.binary_model.predict(X_scaled)[0]
         binary_probs = self.binary_model.predict_proba(X_scaled)[0]
         anomaly_score = float(binary_probs[1]) if len(binary_probs) > 1 else float(binary_probs[0])
+
+        global ANOMALY_THRESHOLD
+        binary_pred = 1 if anomaly_score >= ANOMALY_THRESHOLD else 0
 
         if binary_pred == 0:
             return InferenceResult(label='normal', score=1.0 - anomaly_score, features=features)
