@@ -79,15 +79,18 @@ class SnifferManager:
                 'src_port': 0,
                 'dst_port': 0,
                 'tcp_flags': '',
+                'payload_size': 0,
             }
 
             if packet.haslayer(TCP):
                 packet_dict['src_port'] = packet[TCP].sport
                 packet_dict['dst_port'] = packet[TCP].dport
                 packet_dict['tcp_flags'] = str(packet[TCP].flags)
+                packet_dict['payload_size'] = len(packet[TCP].payload)
             elif packet.haslayer(UDP):
                 packet_dict['src_port'] = packet[UDP].sport
                 packet_dict['dst_port'] = packet[UDP].dport
+                packet_dict['payload_size'] = len(packet[UDP].payload)
 
             self.packet_queue.put(packet_dict)
 

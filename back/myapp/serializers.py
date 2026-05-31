@@ -73,6 +73,7 @@ class PacketInferenceSerializer(serializers.Serializer):
     length = serializers.IntegerField(required=False, default=0)
     tcp_flags = serializers.CharField(required=False, allow_blank=True, default='')
     timestamp = serializers.FloatField(required=False)
+    payload_size = serializers.IntegerField(required=False, default=0)
 
 
 class AlertSerializer(serializers.ModelSerializer):

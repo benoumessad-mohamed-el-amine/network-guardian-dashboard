@@ -37,7 +37,7 @@ class FlowTracker:
     def update_and_get_flow(self, packet: PacketDict) -> Dict[str, Any]:
         key = self._get_flow_key(packet)
         current_time = float(packet.get('timestamp', time.time()))
-        packet_size = int(packet.get('packet_size', packet.get('length', 0) or 0))
+        packet_size = int(packet.get('payload_size', 0))
         tcp_flags = str(packet.get('tcp_flags', '')).upper()
         
         src_ip = str(packet.get('src_ip', '0.0.0.0'))
@@ -153,14 +153,23 @@ def extract_packet_features(packet: PacketDict) -> FeatureDict:
 
     # Calculate flow metrics
     flow_duration = flow['last_packet_time'] - flow['first_packet_time']
-    # Avoid zero division for rates
-    safe_duration = max(1e-6, flow_duration)
 
     total_bytes = sum(flow['all_packet_sizes'])
     total_packets = len(flow['all_packet_times'])
     
-    flow_bytes_sec = float(total_bytes) / safe_duration
-    flow_packets_sec = float(total_packets) / safe_duration
+    fwd_packets_count = len(flow['fwd_packets'])
+    bwd_packets_count = len(flow['bwd_packets'])
+    
+    if flow_duration == 0.0:
+        flow_bytes_sec = 0.0
+        flow_packets_sec = 0.0
+        fwd_packets_sec = 0.0
+        bwd_packets_sec = 0.0
+    else:
+        flow_bytes_sec = float(total_bytes) / flow_duration
+        flow_packets_sec = float(total_packets) / flow_duration
+        fwd_packets_sec = float(fwd_packets_count) / flow_duration
+        bwd_packets_sec = float(bwd_packets_count) / flow_duration
 
     # Flow Inter-Arrival Times (IAT)
     flow_iats = []
@@ -191,12 +200,6 @@ def extract_packet_features(packet: PacketDict) -> FeatureDict:
     # Packet Length metrics
     pkt_len_mean = float(np.mean(flow['all_packet_sizes']))
     pkt_len_std = float(np.std(flow['all_packet_sizes'])) if len(flow['all_packet_sizes']) > 1 else 0.0
-
-    # Packet rates per direction
-    fwd_packets_count = len(flow['fwd_packets'])
-    bwd_packets_count = len(flow['bwd_packets'])
-    fwd_packets_sec = float(fwd_packets_count) / safe_duration
-    bwd_packets_sec = float(bwd_packets_count) / safe_duration
 
     # TCP Flow Time
     total_tcp_flow_time = flow_duration if protocol == 6 else 0.0
