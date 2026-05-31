@@ -13,6 +13,10 @@ export function LoginPage() {
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const { login, needsSetup, checkUser } = useAuth();
 
+  React.useEffect(() => {
+    document.title = needsSetup ? "Initial System Setup — Soficlef Sentinel Flow" : "Login — Soficlef Sentinel Flow";
+  }, [needsSetup]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);

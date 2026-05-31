@@ -93,6 +93,11 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     ],
     links: [
       {
+        rel: "icon",
+        type: "image/png",
+        href: "/src/assets/logo.png",
+      },
+      {
         rel: "stylesheet",
         href: appCss,
       },
@@ -168,11 +173,16 @@ const TITLES: Record<string, string> = {
   "/traffic": "Traffic Logs",
   "/alerts": "Threat Alerts",
   "/settings": "Settings",
+  "/users": "User Management",
 };
 
 function DashboardShell() {
   const path = useRouterState({ select: (s) => s.location.pathname });
   const title = TITLES[path] ?? "Dashboard";
+
+  React.useEffect(() => {
+    document.title = `${title} — Soficlef Sentinel Flow`;
+  }, [title]);
 
   return (
     <SidebarProvider>
