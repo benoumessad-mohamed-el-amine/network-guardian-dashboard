@@ -6,7 +6,7 @@ import numpy as np
 
 from .model_base import BaseModel, FeatureDict, InferenceResult
 
-ANOMALY_THRESHOLD = 0.80
+ANOMALY_THRESHOLD = 0.85
 
 
 class MockModel(BaseModel):

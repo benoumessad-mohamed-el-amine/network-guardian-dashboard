@@ -11,7 +11,7 @@ export const Route = createFileRoute("/settings")({
 
 function SettingsPage() {
   const { user } = useAuth();
-  const [threshold, setThreshold] = useState<number>(0.80);
+  const [threshold, setThreshold] = useState<number>(0.85);
   const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
@@ -106,14 +106,14 @@ function SettingsPage() {
                   value={[threshold]}
                   onValueChange={handleThresholdChange}
                   min={0.10}
-                  max={0.95}
-                  step={0.05}
+                  max={0.99}
+                  step={0.01}
                 />
                 <div className="flex justify-between text-[10px] text-muted-foreground mt-2 font-mono">
                   <span>10% (High Noise)</span>
                   <span>50% (Default)</span>
-                  <span>80% (Recommended)</span>
-                  <span>95% (Strict Anomaly)</span>
+                  <span>85% (Recommended)</span>
+                  <span>99% (Strict Anomaly)</span>
                 </div>
               </div>
 
