@@ -276,9 +276,13 @@ def api_sniffer_threshold(request):
             val = float(request.data.get('threshold'))
             if 0.0 <= val <= 1.0:
                 model_wrappers.set_anomaly_threshold(val)
-                return Response({'threshold': model_wrappers.get_anomaly_threshold()})
+                response = Response({'threshold': model_wrappers.get_anomaly_threshold()})
+                response['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
+                return response
             return Response({'error': 'Threshold must be between 0.0 and 1.0'}, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
             return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
     else:
-        return Response({'threshold': model_wrappers.get_anomaly_threshold()})
+        response = Response({'threshold': model_wrappers.get_anomaly_threshold()})
+        response['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
+        return response

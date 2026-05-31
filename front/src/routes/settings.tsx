@@ -16,7 +16,7 @@ function SettingsPage() {
 
   useEffect(() => {
     if (user?.is_staff) {
-      api.get("/sniffer/threshold/")
+      api.get(`/sniffer/threshold/?_t=${Date.now()}`)
         .then((res) => {
           setThreshold(res.data.threshold);
         })

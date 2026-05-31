@@ -19,8 +19,12 @@ def get_anomaly_threshold() -> float:
                 val = float(f.read().strip())
                 if 0.0 <= val <= 1.0:
                     _cached_threshold = val
+                    import logging
+                    logging.getLogger(__name__).info(f"Loaded anomaly threshold {val:.4f} from file")
                     return val
-    except Exception:
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).error(f"Failed to read anomaly threshold: {e}")
         pass
     _cached_threshold = 0.85
     return 0.85
@@ -31,7 +35,11 @@ def set_anomaly_threshold(val: float) -> None:
     try:
         with open(THRESHOLD_FILE, 'w') as f:
             f.write(f"{val:.4f}")
-    except Exception:
+        import logging
+        logging.getLogger(__name__).info(f"Anomaly threshold successfully updated to {val:.4f}")
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).error(f"Failed to save anomaly threshold: {e}")
         pass
 
 class MockModel(BaseModel):
