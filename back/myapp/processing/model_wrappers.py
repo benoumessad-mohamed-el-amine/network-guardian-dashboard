@@ -5,9 +5,25 @@ from typing import Any, Dict
 import numpy as np
 
 from .model_base import BaseModel, FeatureDict, InferenceResult
+THRESHOLD_FILE = os.path.join(os.path.dirname(__file__), 'threshold.txt')
 
-ANOMALY_THRESHOLD = 0.85
+def get_anomaly_threshold() -> float:
+    try:
+        if os.path.exists(THRESHOLD_FILE):
+            with open(THRESHOLD_FILE, 'r') as f:
+                val = float(f.read().strip())
+                if 0.0 <= val <= 1.0:
+                    return val
+    except Exception:
+        pass
+    return 0.85
 
+def set_anomaly_threshold(val: float) -> None:
+    try:
+        with open(THRESHOLD_FILE, 'w') as f:
+            f.write(f"{val:.4f}")
+    except Exception:
+        pass
 
 class MockModel(BaseModel):
     def __init__(self) -> None:
@@ -204,8 +220,8 @@ class HierarchicalIDSClassifier(BaseModel):
         binary_probs = self.binary_model.predict_proba(X_scaled)[0]
         anomaly_score = float(binary_probs[1]) if len(binary_probs) > 1 else float(binary_probs[0])
 
-        global ANOMALY_THRESHOLD
-        binary_pred = 1 if anomaly_score >= ANOMALY_THRESHOLD else 0
+        threshold = get_anomaly_threshold()
+        binary_pred = 1 if anomaly_score >= threshold else 0
 
         if binary_pred == 0:
             return InferenceResult(label='normal', score=1.0 - anomaly_score, features=features)
