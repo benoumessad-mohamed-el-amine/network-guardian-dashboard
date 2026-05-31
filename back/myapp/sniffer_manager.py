@@ -31,7 +31,11 @@ class SnifferManager:
         if self._is_running:
             return False, "Sniffer is already running"
         
-        self._interface = interface
+        if not interface or interface == "any":
+            self._interface = None
+        else:
+            self._interface = interface
+
         self._stop_event.clear()
         self.packet_queue = queue.Queue()
         
@@ -42,12 +46,17 @@ class SnifferManager:
             scaler_file = os.path.join(models_dir, 'network_scaler.pkl')
             
             if os.path.exists(scaler_file):
-                model = create_model('hierarchical')
-                model.load(models_dir)
-                logger.info("Sniffer successfully loaded Hierarchical IDS Models.")
+                try:
+                    model = create_model('hierarchical')
+                    model.load(models_dir)
+                    logger.info("Sniffer successfully loaded Hierarchical IDS Models.")
+                except Exception as inner_e:
+                    logger.error(f"Sniffer failed to load Hierarchical IDS Models: {inner_e}. Falling back to mock model.")
+                    model = create_model('mock')
+                    model.load('development')
             else:
                 model = create_model('mock')
-                model.load('')
+                model.load('development')
             self.service = PacketAnalysisService(model)
         except Exception as e:
             logger.error(f"Failed to initialize PacketAnalysisService: {e}")
@@ -128,7 +137,7 @@ class SnifferManager:
                     stop_filter=lambda x: self._stop_event.is_set(), 
                     store=0,
                     promisc=True,
-                    filter="ip or ipv6",
+                    filter="ip or ip6",
                     timeout=2.0  # Allow Scapy loop to check stop_filter every 2 seconds
                 )
             except Exception as e:
@@ -159,3 +168,19 @@ class SnifferManager:
             "is_running": self._is_running,
             "interface": self._interface
         }
+
+    def interfaces(self):
+        try:
+            from scapy.all import get_working_ifaces
+            ifaces = get_working_ifaces()
+            return [
+                {
+                    "name": iface.name,
+                    "description": iface.description,
+                    "ip": iface.ip
+                }
+                for iface in ifaces
+            ]
+        except Exception as e:
+            logger.error(f"Failed to list interfaces: {e}")
+            return []

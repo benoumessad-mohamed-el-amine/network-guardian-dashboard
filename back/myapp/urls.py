@@ -19,4 +19,5 @@ urlpatterns = [
     path('sniffer/start/', views.api_sniffer_start, name='sniffer_start'),
     path('sniffer/stop/', views.api_sniffer_stop, name='sniffer_stop'),
     path('sniffer/status/', views.api_sniffer_status, name='sniffer_status'),
+    path('sniffer/interfaces/', views.api_sniffer_interfaces, name='sniffer_interfaces'),
 ]

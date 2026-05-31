@@ -257,3 +257,9 @@ def api_sniffer_stop(request):
 @permission_classes([AllowAny])
 def api_sniffer_status(request):
     return Response(sniffer_manager.status())
+
+
+@api_view(['GET'])
+@permission_classes([IsAdminUser])
+def api_sniffer_interfaces(request):
+    return Response(sniffer_manager.interfaces())

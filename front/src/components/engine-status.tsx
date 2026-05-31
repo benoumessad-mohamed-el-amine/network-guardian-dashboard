@@ -2,8 +2,8 @@ import { Play, Square } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useMonitoring } from "@/context/monitoring-context";
 import { cn } from "@/lib/utils";
-import { useState } from "react";
-import { useAuth } from "@/context/auth-context";
+import { useState, useEffect } from "react";
+import { useAuth, api } from "@/context/auth-context";
 import {
   Select,
   SelectContent,
@@ -18,6 +18,17 @@ export function EngineStatus() {
   const { user } = useAuth();
   const [selectedInterface, setSelectedInterface] = useState("any");
   const [customInterface, setCustomInterface] = useState("");
+  const [interfaces, setInterfaces] = useState<{ name: string; description: string; ip: string }[]>([]);
+
+  useEffect(() => {
+    if (user?.is_staff) {
+      api.get("/sniffer/interfaces/")
+        .then((res) => {
+          setInterfaces(res.data);
+        })
+        .catch((err) => console.error("Failed to fetch interfaces", err));
+    }
+  }, [user]);
 
   const handleToggle = () => {
     if (running) {
@@ -37,11 +48,13 @@ export function EngineStatus() {
             <SelectTrigger className="w-[180px] h-9 bg-card border-border text-xs">
               <SelectValue placeholder="Select Interface" />
             </SelectTrigger>
-            <SelectContent className="bg-card border-border text-xs">
+            <SelectContent className="bg-card border-border text-xs max-h-[300px] overflow-y-auto">
               <SelectItem value="any">Auto (Any Interface)</SelectItem>
-              <SelectItem value="eth0">Ethernet (eth0)</SelectItem>
-              <SelectItem value="wlan0">Wireless / WiFi (wlan0)</SelectItem>
-              <SelectItem value="mon0">WiFi Monitor (mon0)</SelectItem>
+              {interfaces.map((iface) => (
+                <SelectItem key={iface.name} value={iface.name}>
+                  {iface.name} {iface.ip ? `(${iface.ip})` : ""} - {iface.description}
+                </SelectItem>
+              ))}
               <SelectItem value="custom">Custom Interface...</SelectItem>
             </SelectContent>
           </Select>
