@@ -1,6 +1,15 @@
 # Network Guardian IDS Dashboard - Full Stack Application
 
-A comprehensive Network Intrusion Detection System (NIDS) dashboard built with a Django backend and a React/TypeScript/Vite frontend. It includes a real-time Scapy-based packet sniffer, dynamic WiFi sniffing interface selection, and a Hierarchical Machine Learning composite classifier (routing anomalies through DDoS, Portscan, Brute Force, and Syn Flood).
+A comprehensive Network Intrusion Detection System (NIDS) dashboard built with a Django backend and a React/TypeScript/Vite frontend. It features a real-time Scapy-based packet sniffer, dynamic WiFi sniffing interface selection, and a Hierarchical Machine Learning composite classifier.
+
+---
+
+## 📋 Project Overview
+
+This project consists of:
+- **Backend (Django REST Framework)**: Manages packet analysis service, notification routing (console, slack), and logs/alerts storage.
+- **Frontend (React + Vite + TypeScript)**: Premium UI dashboard featuring live chart series, alert feed, log tables, and real-time sniffer controls (including WiFi and custom interface selectors).
+- **Hierarchical ML Engine**: A composite two-tier Random Forest pipeline with an automatic mock fallback for local development.
 
 ---
 
@@ -28,7 +37,7 @@ network-guardian-dashboard/
 │
 └── front/                   # React + Vite Frontend
     ├── src/
-    │   ├── components/      # React components (EngineStatus selector, Charts, Tables)
+    │   ├── components/      # UI Components (EngineStatus selector, Charts, Tables)
     │   ├── context/         # Auth and Monitoring contexts
     │   ├── routes/          # Navigation views (Alerts, Logs, Settings)
     │   └── main.tsx
@@ -39,10 +48,10 @@ network-guardian-dashboard/
 
 ---
 
-## 🚀 Running the Project on Linux
+## 🚀 Setup & Execution Guide (Linux)
 
 ### 1. Django Backend Setup
-Open a terminal and run the following commands:
+Open your terminal and run:
 ```bash
 # Navigate to backend folder
 cd back
@@ -59,9 +68,6 @@ pip install -r requirements.txt
 # Run migrations
 python manage.py migrate
 
-# Seed initial admin user and data (optional)
-python manage.py loaddata initial_data.json  # If available, or run standard seeding
-
 # Start the development server
 python manage.py runserver
 ```
@@ -69,9 +75,9 @@ The API is now running at `http://127.0.0.1:8000/`.
 
 > [!IMPORTANT]
 > **Packet Sniffing Privileges on Linux:**
-> Sniffing live packets (including WiFi sniffing) requires access to raw sockets. You must run the sniffer command or the Django server with root privileges:
+> Sniffing live network packets (including WiFi sniffing) requires access to raw sockets. You must run the sniffer command or activate the virtual environment and run with root/sudo privileges:
 > ```bash
-> # Run sniffer CLI on wlan0 interface
+> # Run sniffer on wireless interface wlan0
 > sudo venv/bin/python manage.py sniff --interface wlan0
 > ```
 
@@ -91,7 +97,7 @@ The React dashboard is now running at `http://localhost:5173/`.
 
 ---
 
-## 🚀 Running the Project on Windows
+## 🚀 Setup & Execution Guide (Windows)
 
 ### 1. Django Backend Setup
 Open PowerShell or Command Prompt:
@@ -121,8 +127,8 @@ The API is now running at `http://127.0.0.1:8000/`.
 
 > [!IMPORTANT]
 > **Packet Sniffing Privileges on Windows:**
-> To capture live traffic on Windows, you must install **Npcap** or **WinPcap** (ensure you check the box to "Install Npcap with WinPcap compatibility mode").
-> Open your terminal as **Administrator**, activate the virtual environment, and run:
+> To capture live traffic on Windows, you must install **Npcap** or **WinPcap** (ensure you check the box to "Install Npcap with WinPcap compatibility mode" during installation).
+> Open your command prompt/PowerShell as **Administrator**, activate the virtual environment, and run:
 > ```cmd
 > python manage.py sniff --interface any
 > ```
@@ -143,22 +149,139 @@ The React dashboard is now running at `http://localhost:5173/`.
 
 ---
 
-## 🛡️ Machine Learning Pipeline Integration
+## 🛡️ Machine Learning Pipeline Architecture
 
-The backend is configured to use a dynamic loader for the hierarchical models:
-1. **Tier-1 Binary Filter:** Decides if traffic is `normal` or an `anomaly` (`binary_anomaly_rf.pkl`).
-2. **Tier-2 Attack Classifiers:** Anomalies are routed to specialized models in parallel:
+The backend implements a two-tier Hierarchical Random Forest Classifier structure:
+
+```mermaid
+classDiagram
+    class BaseModel {
+        <<interface>>
+        +load(model_path) void*
+        +predict(features) InferenceResult*
+        +metadata() Dict*
+    }
+
+    class MockModel {
+        +load(model_path) void
+        +predict(features) InferenceResult
+    }
+
+    class RandomForestModel {
+        +scaler : Any
+        +model : Any
+        +load(model_path) void
+        +predict(features) InferenceResult
+        +metadata() Dict
+    }
+
+    class BinaryAnomalyClassifierRF {
+        +load(model_path) void
+        +predict(features) InferenceResult
+    }
+
+    class PortscanClassifierRF {
+        +load(model_path) void
+        +predict(features) InferenceResult
+    }
+
+    class SynFloodClassifierRF {
+        +load(model_path) void
+        +predict(features) InferenceResult
+    }
+
+    class DDoSClassifierRF {
+        +load(model_path) void
+        +predict(features) InferenceResult
+    }
+
+    class BruteForceClassifierRF {
+        +load(model_path) void
+        +predict(features) InferenceResult
+    }
+
+    class HierarchicalIDSClassifier {
+        +Any scaler
+        +BinaryAnomalyClassifierRF binary_model
+        +SynFloodClassifierRF synflood_model
+        +BruteForceClassifierRF bruteforce_model
+        +DDoSClassifierRF ddos_model
+        +PortscanClassifierRF portscan_model
+        +boolean loaded
+        +List~String~ feature_columns
+        +load(model_dir) void
+        +predict(features) InferenceResult
+        +metadata() Dict
+    }
+
+    BaseModel <|.. MockModel : implements
+    BaseModel <|.. RandomForestModel : implements
+    BaseModel <|.. HierarchicalIDSClassifier : implements
+    RandomForestModel <|-- BinaryAnomalyClassifierRF : extends
+    RandomForestModel <|-- PortscanClassifierRF : extends
+    RandomForestModel <|-- SynFloodClassifierRF : extends
+    RandomForestModel <|-- DDoSClassifierRF : extends
+    RandomForestModel <|-- BruteForceClassifierRF : extends
+    HierarchicalIDSClassifier *-- BinaryAnomalyClassifierRF : composes
+    HierarchicalIDSClassifier *-- SynFloodClassifierRF : composes
+    HierarchicalIDSClassifier *-- BruteForceClassifierRF : composes
+    HierarchicalIDSClassifier *-- DDoSClassifierRF : composes
+    HierarchicalIDSClassifier *-- PortscanClassifierRF : composes
+```
+
+### Classification Routing Decision Block:
+1. **Tier-1 (Binary Classifier)**: Filters normal vs abnormal traffic.
+   - If traffic is classified as **Normal**, execution completes and the log is written as `'normal'`.
+   - If traffic is classified as an **Anomaly**, execution routes to Tier-2.
+2. **Tier-2 (Attack Classifiers)**: Run in parallel on the same feature vector:
    - **DDoS** (`ddos_rf.pkl`)
    - **Portscan** (`portscan_rf.pkl`)
    - **Syn Flood** (`synflood_rf.pkl`)
    - **Brute Force** (`bruteforce_rf.pkl`)
-3. If no Tier-2 classifier is positive, it registers as an **Unknown Threat** and alerts the user to check network configuration.
-
-*Note: If the `.pkl` files are not placed in `back/myapp/processing/models/`, the server automatically falls back to a MockModel so you can develop without ML requirements.*
+3. **Decision Rule:**
+   - If **any** of the specialized Tier-2 models is positive (predicts `1`), the threat is registered with the label of the model having the highest probability.
+   - If **none** of the models are positive, the threat is registered as `'unknown'` ("Unknown Threat Detected") with a description advising to *"Check network configuration."*
 
 ---
 
-## ⚙️ Configuration & Environment
+## 🔗 API Endpoints
 
-- **CORS Allowed Origins:** Managed in `back/demo/settings.py`.
-- **API URL Configuration:** Managed in `front/src/context/auth-context.tsx` or using a `.env` file containing `VITE_API_URL=http://localhost:8000`.
+### Traffic Logs
+- `GET /api/traffic/` - Get all traffic logs
+- `POST /api/traffic/` - Create a traffic log
+- `GET /api/traffic/suspicious/` - Get suspicious traffic logs
+- `GET /api/traffic/statistics/` - Get traffic statistics
+
+### Alerts
+- `GET /api/alerts/` - Get all alerts
+- `POST /api/alerts/` - Create an alert
+- `GET /api/alerts/unresolved/` - Get unresolved alerts
+- `GET /api/alerts/by_severity/` - Get alerts grouped by severity
+- `POST /api/alerts/{id}/resolve/` - Mark an alert as resolved
+
+### Sniffer Control
+- `GET /api/sniffer/status/` - Check if the Scapy sniffer is running
+- `POST /api/sniffer/start/` - Start the sniffer engine (body: `{"interface": "wlan0"}`)
+- `POST /api/sniffer/stop/` - Stop the sniffer engine
+
+---
+
+## 🔧 Troubleshooting
+
+### CORS Errors
+- Check that the `CORS_ALLOWED_ORIGINS` in `back/demo/settings.py` contains your frontend IP/Port (default: `http://localhost:5173`).
+- Restart the Django server after making settings changes.
+
+### DB Schema Out-of-Sync
+If you face database schema errors:
+```bash
+# Delete DB file
+rm back/db.sqlite3
+# Re-run migrations
+python back/manage.py migrate
+```
+
+### Packet Sniffing Errors on Windows
+- Ensure **Npcap** or **WinPcap** is installed.
+- Ensure PowerShell/CMD is running as **Administrator**.
+- If the default interface `any` is not supported on your card, select your specific interface card index or name from the frontend dropdown list.
