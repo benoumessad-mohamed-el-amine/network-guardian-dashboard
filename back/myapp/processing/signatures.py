@@ -199,7 +199,10 @@ class SignatureEngine:
                         self.ddos_dest_history[dst_ip] = []
                     self.ddos_dest_history[dst_ip].append((timestamp, src_ip))
 
-            # --- B. Evaluate Portscan (High Priority, before SYN Flood) ---
+            # --- B. Get Adaptive Thresholds ---
+            thresholds = self._get_adaptive_thresholds(timestamp)
+
+            # --- C. Evaluate Portscan (High Priority, before SYN Flood) ---
             if src_ip in self.port_history:
                 port_active = [
                     (t, p) for t, p in self.port_history[src_ip]
@@ -207,11 +210,11 @@ class SignatureEngine:
                 ]
                 self.port_history[src_ip] = port_active
                 unique_ports = {p for _, p in port_active}
-                if len(unique_ports) >= 10:
-                    logger.warning(f"[SIGNATURE] Portscan rate-limit triggered for source {src_ip}: {len(unique_ports)} unique ports contacted.")
+                if len(unique_ports) >= thresholds['portscan']:
+                    logger.warning(f"[SIGNATURE] Portscan rate-limit triggered for source {src_ip}: {len(unique_ports)} unique ports contacted (Threshold: {thresholds['portscan']}).")
                     return 'portscan'
 
-            # --- C. Evaluate Coordinated Botnet DDoS ---
+            # --- D. Evaluate Coordinated Botnet DDoS ---
             # If the destination overall volume is high, and the traffic is spread across multiple source IPs
             if dst_ip in self.ddos_dest_history:
                 dst_active = [
@@ -220,14 +223,15 @@ class SignatureEngine:
                 ]
                 self.ddos_dest_history[dst_ip] = dst_active
                 
-                if len(dst_active) >= 40:
+                botnet_trigger = thresholds['botnet_dst']
+                if len(dst_active) >= botnet_trigger:
                     # Count distinct source IPs targeting this destination in the active window
                     unique_sources = {sip for _, sip in dst_active if not sip.startswith('127.') and sip != '0.0.0.0'}
                     if len(unique_sources) >= 3:
-                        logger.warning(f"[SIGNATURE] Botnet DDoS coordinated flood triggered for destination {dst_ip}: {len(dst_active)} packets from {len(unique_sources)} sources.")
+                        logger.warning(f"[SIGNATURE] Botnet DDoS coordinated flood triggered for destination {dst_ip}: {len(dst_active)} packets from {len(unique_sources)} sources (Threshold: {botnet_trigger}).")
                         return 'botnet'
 
-            # --- D. Evaluate SYN Flood ---
+            # --- E. Evaluate SYN Flood ---
             # Per-source SYN Flood
             if is_syn and src_ip in self.syn_history:
                 syn_src_active = [t for t in self.syn_history[src_ip] if timestamp - t <= 2.0]
@@ -238,19 +242,21 @@ class SignatureEngine:
                 if src_ip in self.port_history:
                     ports_targeted = {p for _, p in self.port_history[src_ip] if timestamp - _ <= 2.0}
                 
-                if len(syn_src_active) >= 20 and len(ports_targeted) < 5:
-                    logger.warning(f"[SIGNATURE] SYN Flood rate-limit triggered for source {src_ip}: {len(syn_src_active)} SYN packets in 2s.")
+                syn_src_trigger = thresholds['syn_flood_src']
+                if len(syn_src_active) >= syn_src_trigger and len(ports_targeted) < 5:
+                    logger.warning(f"[SIGNATURE] SYN Flood rate-limit triggered for source {src_ip}: {len(syn_src_active)} SYN packets in 2s (Threshold: {syn_src_trigger}).")
                     return 'sync flood'
             
             # Per-destination SYN Flood (Distributed/Spoofed)
             if is_syn and dst_ip in self.syn_dest_history:
                 syn_dst_active = [t for t in self.syn_dest_history[dst_ip] if timestamp - t <= 2.0]
                 self.syn_dest_history[dst_ip] = syn_dst_active
-                if len(syn_dst_active) >= 40:
-                    logger.warning(f"[SIGNATURE] SYN Flood destination rate-limit triggered for destination {dst_ip}: {len(syn_dst_active)} SYN packets in 2s.")
+                syn_dst_trigger = thresholds['syn_flood_dst']
+                if len(syn_dst_active) >= syn_dst_trigger:
+                    logger.warning(f"[SIGNATURE] SYN Flood destination rate-limit triggered for destination {dst_ip}: {len(syn_dst_active)} SYN packets in 2s (Threshold: {syn_dst_trigger}).")
                     return 'sync flood'
 
-            # --- E. Evaluate UDP Flood ---
+            # --- F. Evaluate UDP Flood ---
             # Per-source UDP DoS
             if protocol == 17 and src_ip in self.udp_source_history:
                 udp_src_active = [t for t in self.udp_source_history[src_ip] if timestamp - t <= 2.0]
@@ -260,49 +266,55 @@ class SignatureEngine:
                 if src_ip in self.port_history:
                     ports_targeted = {p for _, p in self.port_history[src_ip] if timestamp - _ <= 2.0}
                     
-                if len(udp_src_active) >= 50 and len(ports_targeted) < 5:
-                    logger.warning(f"[SIGNATURE] UDP Flood rate-limit triggered for source {src_ip}: {len(udp_src_active)} UDP packets in 2s.")
+                udp_src_trigger = thresholds['udp_flood_src']
+                if len(udp_src_active) >= udp_src_trigger and len(ports_targeted) < 5:
+                    logger.warning(f"[SIGNATURE] UDP Flood rate-limit triggered for source {src_ip}: {len(udp_src_active)} UDP packets in 2s (Threshold: {udp_src_trigger}).")
                     return 'ddos'
             
             # Per-destination UDP DDoS
             if protocol == 17 and dst_ip in self.udp_dest_history:
                 udp_dst_active = [t for t in self.udp_dest_history[dst_ip] if timestamp - t <= 2.0]
                 self.udp_dest_history[dst_ip] = udp_dst_active
-                if len(udp_dst_active) >= 150:
-                    logger.warning(f"[SIGNATURE] UDP DDoS destination rate-limit triggered for destination {dst_ip}: {len(udp_dst_active)} UDP packets in 2s.")
+                udp_dst_trigger = thresholds['udp_flood_dst']
+                if len(udp_dst_active) >= udp_dst_trigger:
+                    logger.warning(f"[SIGNATURE] UDP DDoS destination rate-limit triggered for destination {dst_ip}: {len(udp_dst_active)} UDP packets in 2s (Threshold: {udp_dst_trigger}).")
                     return 'ddos'
 
-            # --- F. Evaluate ICMP Flood ---
+            # --- G. Evaluate ICMP Flood ---
             # Per-source ICMP DoS
             if protocol == 1 and src_ip in self.icmp_source_history:
                 icmp_src_active = [t for t in self.icmp_source_history[src_ip] if timestamp - t <= 2.0]
                 self.icmp_source_history[src_ip] = icmp_src_active
-                if len(icmp_src_active) >= 30:
-                    logger.warning(f"[SIGNATURE] ICMP Flood rate-limit triggered for source {src_ip}: {len(icmp_src_active)} ICMP packets in 2s.")
+                icmp_src_trigger = thresholds['icmp_flood_src']
+                if len(icmp_src_active) >= icmp_src_trigger:
+                    logger.warning(f"[SIGNATURE] ICMP Flood rate-limit triggered for source {src_ip}: {len(icmp_src_active)} ICMP packets in 2s (Threshold: {icmp_src_trigger}).")
                     return 'ddos'
                     
             # Per-destination ICMP DDoS
             if protocol == 1 and dst_ip in self.icmp_dest_history:
                 icmp_dst_active = [t for t in self.icmp_dest_history[dst_ip] if timestamp - t <= 2.0]
                 self.icmp_dest_history[dst_ip] = icmp_dst_active
-                if len(icmp_dst_active) >= 100:
-                    logger.warning(f"[SIGNATURE] ICMP DDoS destination rate-limit triggered for destination {dst_ip}: {len(icmp_dst_active)} ICMP packets in 2s.")
+                icmp_dst_trigger = thresholds['icmp_flood_dst']
+                if len(icmp_dst_active) >= icmp_dst_trigger:
+                    logger.warning(f"[SIGNATURE] ICMP DDoS destination rate-limit triggered for destination {dst_ip}: {len(icmp_dst_active)} ICMP packets in 2s (Threshold: {icmp_dst_trigger}).")
                     return 'ddos'
 
-            # --- G. Evaluate General Volume Flood ---
+            # --- H. Evaluate General Volume Flood ---
             # Per-source DoS
             if src_ip in self.ddos_source_history:
                 src_active = [t for t in self.ddos_source_history[src_ip] if timestamp - t <= 2.0]
                 self.ddos_source_history[src_ip] = src_active
-                if len(src_active) >= 100:
-                    logger.warning(f"[SIGNATURE] DDoS source rate-limit triggered for source {src_ip}: {len(src_active)} packets in 2s.")
+                ddos_src_trigger = thresholds['ddos_src']
+                if len(src_active) >= ddos_src_trigger:
+                    logger.warning(f"[SIGNATURE] DDoS source rate-limit triggered for source {src_ip}: {len(src_active)} packets in 2s (Threshold: {ddos_src_trigger}).")
                     return 'ddos'
                 
             # Per-destination DDoS
             if dst_ip in self.ddos_dest_history:
                 dst_gen_active = [t for t, _ in self.ddos_dest_history[dst_ip] if timestamp - t <= 2.0]
-                if len(dst_gen_active) >= 200:
-                    logger.warning(f"[SIGNATURE] DDoS destination rate-limit triggered for destination {dst_ip}: {len(dst_gen_active)} packets in 2s.")
+                ddos_dst_trigger = thresholds['ddos_dst']
+                if len(dst_gen_active) >= ddos_dst_trigger:
+                    logger.warning(f"[SIGNATURE] DDoS destination rate-limit triggered for destination {dst_ip}: {len(dst_gen_active)} packets in 2s (Threshold: {ddos_dst_trigger}).")
                     return 'ddos'
 
         # -------------------------------------------------------------
@@ -435,3 +447,44 @@ class SignatureEngine:
                 self.ddos_dest_history[ip] = active
         for ip in expired_ddos_dst:
             del self.ddos_dest_history[ip]
+
+    def _get_adaptive_thresholds(self, timestamp: float) -> dict[str, int]:
+        """Calculates adaptive rate limits based on time-of-day and live network volume baselines."""
+        try:
+            struct_time = time.localtime(timestamp)
+            hour = struct_time.tm_hour
+        except Exception:
+            hour = 12  # Fallback to midday
+            
+        # Time-of-day scaling:
+        # Night mode: 11 PM to 6 AM (scaled down to 0.6x for stealth detection)
+        if hour >= 23 or hour < 6:
+            time_scale = 0.6
+        # Peak business hours: 9 AM to 5 PM (scaled up to 1.5x to handle load)
+        elif 9 <= hour <= 17:
+            time_scale = 1.5
+        else:
+            time_scale = 1.0
+
+        # Live Volume scaling:
+        # Sum of active packets in past 2 seconds across all tracked IPs
+        total_recent_packets = sum(len(h) for h in self.ddos_source_history.values())
+        if total_recent_packets > 100:
+            volume_scale = min(2.5, total_recent_packets / 100.0)
+        else:
+            volume_scale = 1.0
+
+        scale = time_scale * volume_scale
+
+        return {
+            'portscan': max(4, int(10 * scale)),
+            'botnet_dst': max(8, int(40 * scale)),
+            'syn_flood_src': max(8, int(20 * scale)),
+            'syn_flood_dst': max(15, int(40 * scale)),
+            'udp_flood_src': max(15, int(50 * scale)),
+            'udp_flood_dst': max(50, int(150 * scale)),
+            'icmp_flood_src': max(10, int(30 * scale)),
+            'icmp_flood_dst': max(30, int(100 * scale)),
+            'ddos_src': max(30, int(100 * scale)),
+            'ddos_dst': max(60, int(200 * scale)),
+        }

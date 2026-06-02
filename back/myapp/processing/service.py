@@ -61,10 +61,16 @@ class PacketAnalysisService:
             label_upper = result.label.upper()
             title = title_map.get(label_upper, f'{result.label} Intrusion Detected')
 
-            if label_upper == 'UNKNOWN':
-                description = 'An unknown anomaly was detected. Check network configuration.'
+            if 'malware_family' in result.features:
+                title = f"Malware C2 Session ({result.features['malware_family']})"
+                description = f"Encrypted traffic signature (JA3: {result.features.get('ja3_hash')}) matches known malware family: {result.features['malware_family']}."
+            elif 'reputation_match' in result.features:
+                description = f"An active {result.label} threat was detected from a blocklisted host. Context: {result.features['reputation_match']} (Confidence: {result.score:.2f})."
             else:
-                description = f'An active {result.label} attack was detected with confidence {result.score:.2f}.'
+                if label_upper == 'UNKNOWN':
+                    description = 'An unknown anomaly was detected. Check network configuration.'
+                else:
+                    description = f'An active {result.label} attack was detected with confidence {result.score:.2f}.'
 
             alert = Alert.objects.create(
                 title=title,
@@ -127,10 +133,17 @@ class PacketAnalysisService:
                 label_upper = log.predicted_label.upper()
                 title = title_map.get(label_upper, f'{log.predicted_label} Intrusion Detected')
                 
-                if label_upper == 'UNKNOWN':
-                    description = 'An unknown anomaly was detected. Check network configuration.'
+                features = log.features or {}
+                if 'malware_family' in features:
+                    title = f"Malware C2 Session ({features['malware_family']})"
+                    description = f"Encrypted traffic signature (JA3: {features.get('ja3_hash')}) matches known malware family: {features['malware_family']}."
+                elif 'reputation_match' in features:
+                    description = f"An active {log.predicted_label} threat was detected from a blocklisted host. Context: {features['reputation_match']} (Confidence: {log.confidence_score:.2f})."
                 else:
-                    description = f'An active {log.predicted_label} attack was detected with confidence {log.confidence_score:.2f}.'
+                    if label_upper == 'UNKNOWN':
+                        description = 'An unknown anomaly was detected. Check network configuration.'
+                    else:
+                        description = f'An active {log.predicted_label} attack was detected with confidence {log.confidence_score:.2f}.'
 
                 alert = Alert(
                     title=title,
