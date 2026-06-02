@@ -32,7 +32,13 @@ class SnifferManager:
             return False, "Sniffer is already running"
         
         if not interface or interface == "any":
-            self._interface = None
+            try:
+                from scapy.all import get_working_ifaces
+                self._interface = [iface.name for iface in get_working_ifaces()]
+                logger.info(f"Sniffer resolved 'any' to interfaces: {self._interface}")
+            except Exception as e:
+                logger.error(f"Failed to get working interfaces: {e}")
+                self._interface = None
         else:
             self._interface = interface
 

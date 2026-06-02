@@ -195,7 +195,7 @@ class AlertViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=['get'])
     def unresolved(self, request):
         """Get unresolved alerts"""
-        unresolved_alerts = Alert.objects.filter(is_resolved=False)
+        unresolved_alerts = Alert.objects.filter(is_resolved=False).order_by('-timestamp')[:100]
         serializer = self.get_serializer(unresolved_alerts, many=True)
         return Response(serializer.data)
 
