@@ -158,7 +158,7 @@ export function MonitoringProvider({ children }: { children: React.ReactNode }) 
       fetchData();
       fetchStats();
       fetchStatus();
-    }, 3000);
+    }, 1000);
 
     return () => clearInterval(interval);
   }, []);

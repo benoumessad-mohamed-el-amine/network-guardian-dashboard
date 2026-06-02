@@ -108,11 +108,12 @@ class SnifferManager:
             
             while not self._stop_event.is_set() or not self.packet_queue.empty():
                 try:
-                    # Retrieve packet with a timeout to check self._stop_event periodically
-                    packet_dict = self.packet_queue.get(timeout=0.5)
+                    # Retrieve packet with a very small timeout for low latency
+                    packet_dict = self.packet_queue.get(timeout=0.02)
                     batch.append(packet_dict)
                     
-                    if len(batch) >= batch_size:
+                    # Self-adaptive flush: flush if we reached batch size OR if queue is currently empty
+                    if len(batch) >= batch_size or self.packet_queue.empty():
                         try:
                             self.service.bulk_analyze_and_store(batch)
                         except Exception as e:
