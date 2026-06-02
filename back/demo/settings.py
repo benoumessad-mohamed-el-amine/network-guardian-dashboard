@@ -199,3 +199,6 @@ REST_FRAMEWORK = {
 
 # Session settings
 SESSION_COOKIE_SAMESITE = 'Lax'
+
+# Email backend configuration for development/demo
+EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'

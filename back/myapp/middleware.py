@@ -12,6 +12,9 @@ class DisableCsrfForAuthMiddleware:
             '/api/auth/register/', 
             '/api/auth/logout/',
             '/api/auth/csrf/',
+            '/api/auth/forgot-password/',
+            '/api/auth/reset-password/',
+            '/api/auth/user/',
             '/api/sniffer/start/',
             '/api/sniffer/stop/',
         ]

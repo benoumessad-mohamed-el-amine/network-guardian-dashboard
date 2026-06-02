@@ -10,9 +10,17 @@ export const Route = createFileRoute("/settings")({
 });
 
 function SettingsPage() {
-  const { user } = useAuth();
+  const { user, checkUser } = useAuth();
   const [threshold, setThreshold] = useState<number>(0.85);
   const [isSaving, setIsSaving] = useState(false);
+  const [email, setEmail] = useState(user?.email || "");
+  const [isUpdatingEmail, setIsUpdatingEmail] = useState(false);
+
+  useEffect(() => {
+    if (user?.email) {
+      setEmail(user.email);
+    }
+  }, [user]);
 
   useEffect(() => {
     if (user?.is_staff) {
@@ -23,6 +31,21 @@ function SettingsPage() {
         .catch((err) => console.error("Failed to fetch detection threshold", err));
     }
   }, [user]);
+
+  const handleUpdateEmail = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsUpdatingEmail(true);
+    try {
+      await api.post("/auth/user/", { email });
+      await checkUser();
+      toast.success("Email address updated successfully!");
+    } catch (err: any) {
+      console.error("Failed to update email", err);
+      toast.error(err.response?.data?.error || "Failed to update email address");
+    } finally {
+      setIsUpdatingEmail(false);
+    }
+  };
 
   const handleThresholdChange = (val: number[]) => {
     setThreshold(val[0]);
@@ -59,9 +82,38 @@ function SettingsPage() {
             </div>
             <div>
               <h2 className="text-lg font-semibold">{user?.username}</h2>
-              <p className="text-sm text-muted-foreground">{user?.email}</p>
+              <p className="text-xs text-muted-foreground">
+                {user?.is_staff ? "System Administrator" : "Security Analyst"}
+              </p>
             </div>
           </div>
+          <form onSubmit={handleUpdateEmail} className="space-y-4 pt-4 border-b border-border pb-4">
+            <div className="space-y-2">
+              <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                Email Address
+              </label>
+              <div className="flex gap-2">
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                  placeholder="e.g. admin@soficlef.local"
+                  className="flex-1 rounded-md border border-border bg-muted/20 px-3 py-1.5 text-xs text-foreground placeholder-muted-foreground/60 transition-all focus:border-primary/50 focus:outline-none focus:ring-1 focus:ring-primary/50"
+                />
+                <button
+                  type="submit"
+                  disabled={isUpdatingEmail || email === user?.email}
+                  className="inline-flex h-8 items-center justify-center rounded-md bg-primary px-3 text-xs font-semibold text-primary-foreground transition-all hover:bg-primary/90 disabled:opacity-40"
+                >
+                  {isUpdatingEmail ? "Saving..." : "Update"}
+                </button>
+              </div>
+              <p className="text-[10px] text-muted-foreground leading-normal">
+                Associating an email enables password reset authentication via One-Time Verification codes (OTP).
+              </p>
+            </div>
+          </form>
           <div className="pt-4">
             <div className="flex items-center gap-2 text-sm">
               <Shield className="h-4 w-4 text-muted-foreground" />
@@ -70,7 +122,7 @@ function SettingsPage() {
                 {user?.is_staff ? "Administrator" : "Analyst"}
               </span>
             </div>
-            <p className="mt-2 text-xs text-muted-foreground">
+            <p className="mt-2 text-xs text-muted-foreground leading-normal">
               Your role defines what actions you can take within the IDS dashboard. Administrators have full system access.
             </p>
           </div>

@@ -92,13 +92,119 @@ def api_logout(request):
     return Response({'message': 'Logout successful'})
 
 
-@api_view(['GET'])
+import random
+import time
+from django.core.mail import send_mail
+
+# In-memory OTP storage for password resets: { username: { "otp": "123456", "expires_at": float, "user_id": int } }
+otp_store = {}
+
+@api_view(['GET', 'POST'])
 @permission_classes([AllowAny])
 def api_user(request):
     if not request.user.is_authenticated:
         return Response({'detail': 'Authentication credentials were not provided.'}, status=status.HTTP_401_UNAUTHORIZED)
+    
+    if request.method == 'POST':
+        email = request.data.get('email')
+        if not email:
+            return Response({'error': 'Email is required'}, status=status.HTTP_400_BAD_REQUEST)
+        request.user.email = email
+        request.user.save()
+        return Response(UserSerializer(request.user).data)
+        
     serializer = UserSerializer(request.user)
     return Response(serializer.data)
+
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def api_forgot_password(request):
+    identity = request.data.get('identity')  # username or email
+    if not identity:
+        return Response({'error': 'Username or Email is required'}, status=status.HTTP_400_BAD_REQUEST)
+    
+    # Lookup user by username or email
+    user = User.objects.filter(username=identity).first() or User.objects.filter(email=identity).first()
+    if not user:
+        return Response({'error': 'No user found with the provided username or email'}, status=status.HTTP_404_NOT_FOUND)
+        
+    if not user.email:
+        return Response({'error': 'This user account has no associated email address. Please contact an administrator.'}, status=status.HTTP_400_BAD_REQUEST)
+        
+    # Generate a random 6-digit OTP code
+    otp = str(random.randint(100000, 999999))
+    
+    # Store OTP in-memory with a 10-minute expiry
+    otp_store[user.username] = {
+        'otp': otp,
+        'expires_at': time.time() + 600,
+        'user_id': user.id
+    }
+    
+    # Formulate email message
+    subject = "Password Reset OTP - Sentinel Flow"
+    message = f"""Hello {user.username},
+
+You requested a password reset for your Soficlef Sentinel Flow IDS account.
+
+Your One-Time Password (OTP) code is: {otp}
+
+This OTP is valid for 10 minutes. If you did not request this reset, please ignore this email.
+
+Best regards,
+Soficlef Sentinel Security Systems Team
+"""
+    try:
+        send_mail(
+            subject,
+            message,
+            "security@soficlef.local",
+            [user.email],
+            fail_silently=False
+        )
+    except Exception as e:
+        return Response({'error': f'Failed to send email: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
+    return Response({'message': 'OTP sent successfully to your registered email address.'})
+
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def api_reset_password(request):
+    identity = request.data.get('identity')
+    otp_code = request.data.get('otp')
+    new_password = request.data.get('new_password')
+    
+    if not identity or not otp_code or not new_password:
+        return Response({'error': 'Identity, OTP, and new password are required'}, status=status.HTTP_400_BAD_REQUEST)
+        
+    user = User.objects.filter(username=identity).first() or User.objects.filter(email=identity).first()
+    if not user:
+        return Response({'error': 'User not found'}, status=status.HTTP_404_NOT_FOUND)
+        
+    otp_record = otp_store.get(user.username)
+    if not otp_record:
+        return Response({'error': 'No active OTP request found for this account'}, status=status.HTTP_400_BAD_REQUEST)
+        
+    if time.time() > otp_record['expires_at']:
+        del otp_store[user.username]
+        return Response({'error': 'The OTP code has expired. Please request a new one.'}, status=status.HTTP_400_BAD_REQUEST)
+        
+    if otp_record['otp'] != str(otp_code).strip():
+        return Response({'error': 'Invalid OTP code. Please try again.'}, status=status.HTTP_400_BAD_REQUEST)
+        
+    # Reset password
+    user.set_password(new_password)
+    user.save()
+    
+    # Log the password change event
+    AccessLog.objects.create(user=user, action='LOGIN', ip_address=request.META.get('REMOTE_ADDR'))
+    
+    # Clear the OTP
+    del otp_store[user.username]
+    
+    return Response({'message': 'Password has been reset successfully. You can now log in.'})
 
 
 @api_view(['GET'])
