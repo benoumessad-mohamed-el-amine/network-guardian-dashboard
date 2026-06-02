@@ -19,8 +19,10 @@ interface AuthState {
 
 const AuthContext = React.createContext<AuthState | null>(null);
 
+// Dynamically resolve backend host IP based on the browser's current hostname
+const apiHost = typeof window !== "undefined" ? window.location.hostname : "localhost";
 const api = axios.create({
-  baseURL: "http://localhost:8000/api",
+  baseURL: `http://${apiHost}:8000/api`,
   withCredentials: true,
 });
 
