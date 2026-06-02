@@ -66,10 +66,10 @@ export function AlertFeed({ alerts, limit }: { alerts: ThreatAlert[]; limit?: nu
             <Button
               size="sm"
               variant="ghost"
-              className="gap-1 text-xs"
+              className="gap-1 text-xs px-2 sm:px-3"
               onClick={() => setActive(a)}
             >
-              View Details
+              <span className="hidden sm:inline">View Details</span>
               <ChevronRight className="h-3.5 w-3.5" />
             </Button>
           </li>

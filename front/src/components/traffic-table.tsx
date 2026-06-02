@@ -23,7 +23,7 @@ export function TrafficTable({
       className="overflow-auto rounded-lg border border-border bg-card"
       style={{ maxHeight }}
     >
-      <table className="w-full text-sm">
+      <table className="w-full text-sm min-w-[600px]">
         <thead className="sticky top-0 z-10 bg-card/95 backdrop-blur">
           <tr className="border-b border-border text-left text-xs uppercase tracking-wider text-muted-foreground">
             <th className="px-4 py-3 font-medium">Time</th>

@@ -40,12 +40,12 @@ export function EngineStatus() {
   };
 
   return (
-    <div className="flex items-center gap-3">
+    <div className="flex items-center gap-2 sm:gap-3">
       {/* Interface selection when idle */}
       {!running && user?.is_staff && (
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5 sm:gap-2">
           <Select value={selectedInterface} onValueChange={setSelectedInterface}>
-            <SelectTrigger className="w-[180px] h-9 bg-card border-border text-xs">
+            <SelectTrigger className="w-[110px] sm:w-[180px] h-9 bg-card border-border text-xs">
               <SelectValue placeholder="Select Interface" />
             </SelectTrigger>
             <SelectContent className="bg-card border-border text-xs max-h-[300px] overflow-y-auto">
@@ -61,17 +61,17 @@ export function EngineStatus() {
 
           {selectedInterface === "custom" && (
             <Input
-              placeholder="e.g. wlan1"
+              placeholder="wlan1"
               value={customInterface}
               onChange={(e) => setCustomInterface(e.target.value)}
-              className="w-[100px] h-9 text-xs bg-card border-border"
+              className="w-[80px] sm:w-[100px] h-9 text-xs bg-card border-border"
             />
           )}
         </div>
       )}
 
       {/* Engine status indicator */}
-      <div className="flex items-center gap-2 rounded-md border border-border bg-card/50 px-3 py-1.5">
+      <div className="flex items-center gap-1.5 sm:gap-2 rounded-md border border-border bg-card/50 px-2 sm:px-3 py-1.5">
         <span className="relative flex h-2 w-2">
           {running && (
             <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-success/60 opacity-75" />
@@ -83,11 +83,11 @@ export function EngineStatus() {
             )}
           />
         </span>
-        <span className="text-xs font-medium tracking-wide text-muted-foreground">
+        <span className="text-xs font-medium tracking-wide text-muted-foreground hidden sm:inline">
           Engine
         </span>
         <span className="text-xs font-semibold">
-          {running ? `Monitoring (${activeInterface || "any"})` : "Idle"}
+          {running ? `${activeInterface || "any"}` : "Idle"}
         </span>
       </div>
 
@@ -96,10 +96,12 @@ export function EngineStatus() {
           size="sm"
           variant={running ? "destructive" : "default"}
           onClick={handleToggle}
-          className="gap-2"
+          className="gap-2 px-2.5 sm:px-3"
         >
           {running ? <Square className="h-3.5 w-3.5" /> : <Play className="h-3.5 w-3.5" />}
-          {running ? "Stop Monitoring" : "Start Monitoring"}
+          <span className="hidden sm:inline">
+            {running ? "Stop Monitoring" : "Start Monitoring"}
+          </span>
         </Button>
       )}
     </div>
