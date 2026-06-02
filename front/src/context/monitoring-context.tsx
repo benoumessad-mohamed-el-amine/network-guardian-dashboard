@@ -36,6 +36,7 @@ export interface TrafficPoint {
 
 interface MonitoringState {
   running: boolean;
+  activeInterface: string | null;
   toggle: (selectedInterface?: string) => void;
   packets: number;
   kbps: number;
@@ -57,6 +58,7 @@ function mapProtocol(p: string): Protocol {
 
 export function MonitoringProvider({ children }: { children: React.ReactNode }) {
   const [running, setRunning] = React.useState(false);
+  const [activeInterface, setActiveInterface] = React.useState<string | null>(null);
   const [packets, setPackets] = React.useState(0);
   const [kbps, setKbps] = React.useState(0);
   const [totalBytes, setTotalBytes] = React.useState(0);
@@ -80,6 +82,7 @@ export function MonitoringProvider({ children }: { children: React.ReactNode }) 
     try {
       const res = await api.get("/sniffer/status/");
       setRunning(res.data.is_running);
+      setActiveInterface(res.data.interface);
     } catch (err) {
       console.error("Failed to fetch sniffer status", err);
     }
@@ -186,6 +189,7 @@ export function MonitoringProvider({ children }: { children: React.ReactNode }) 
   const value = React.useMemo<MonitoringState>(
     () => ({
       running,
+      activeInterface,
       toggle,
       packets,
       kbps,
@@ -195,7 +199,7 @@ export function MonitoringProvider({ children }: { children: React.ReactNode }) 
       series,
       pendingAlerts: alerts.length,
     }),
-    [running, packets, kbps, totalBytes, logs, alerts, series]
+    [running, activeInterface, packets, kbps, totalBytes, logs, alerts, series]
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

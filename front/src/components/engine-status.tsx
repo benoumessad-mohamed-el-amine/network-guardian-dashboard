@@ -14,7 +14,7 @@ import {
 import { Input } from "@/components/ui/input";
 
 export function EngineStatus() {
-  const { running, toggle } = useMonitoring();
+  const { running, activeInterface, toggle } = useMonitoring();
   const { user } = useAuth();
   const [selectedInterface, setSelectedInterface] = useState("any");
   const [customInterface, setCustomInterface] = useState("");
@@ -87,7 +87,7 @@ export function EngineStatus() {
           Engine
         </span>
         <span className="text-xs font-semibold">
-          {running ? "Monitoring" : "Idle"}
+          {running ? `Monitoring (${activeInterface || "any"})` : "Idle"}
         </span>
       </div>
 
