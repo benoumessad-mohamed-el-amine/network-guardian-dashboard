@@ -268,6 +268,31 @@ classDiagram
 
 ## 🔧 Troubleshooting
 
+### Port Already in Use
+If you receive an `Error: That port is already in use` message when starting either the Django backend (port `8000`) or Vite frontend (port `8080` or `5173`), a background process is already holding that port.
+
+#### On Linux:
+You can find and kill the process occupying the port with the following commands:
+```bash
+# Find which process is occupying port 8000 or 8080
+lsof -i :8000
+lsof -i :8080
+
+# Instantly terminate the process holding the port
+fuser -k 8000/tcp
+fuser -k 8080/tcp
+```
+
+#### On Windows (PowerShell/CMD):
+```cmd
+# Find the PID (Process ID) occupying the port
+netstat -aon | findstr :8000
+netstat -aon | findstr :8080
+
+# Kill the process (replace <PID> with the number from the netstat output)
+taskkill /F /PID <PID>
+```
+
 ### CORS Errors
 - Check that the `CORS_ALLOWED_ORIGINS` in `back/demo/settings.py` contains your frontend IP/Port (default: `http://localhost:5173`).
 - Restart the Django server after making settings changes.
