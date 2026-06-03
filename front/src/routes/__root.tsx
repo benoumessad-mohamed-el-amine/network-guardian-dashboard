@@ -122,7 +122,7 @@ function RootShell({ children }: { children: React.ReactNode }) {
       <head>
         <HeadContent />
       </head>
-      <body className="font-sans antialiased">
+      <body className="font-sans antialiased" suppressHydrationWarning>
         {children}
         <Scripts />
       </body>
@@ -203,17 +203,7 @@ function DashboardShell() {
             </div>
           </header>
           <main className="flex-1 overflow-x-hidden p-6">
-            <AnimatePresence mode="wait">
-              <motion.div
-                key={path}
-                initial={{ opacity: 0, y: 4 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.18, ease: "easeOut" }}
-              >
-                <Outlet />
-              </motion.div>
-            </AnimatePresence>
+            <Outlet />
           </main>
         </div>
       </div>

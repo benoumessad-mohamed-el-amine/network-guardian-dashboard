@@ -37,9 +37,9 @@ sequenceDiagram
         Consumer->>DB: Bulk insert logs & alerts
     end
 
-    loop 1s Polling
-        Frontend->>DB: Fetch latest 100 alerts & stats
-        DB->>Frontend: JSON Payload
+    Frontend->>DB: Open EventSource Stream (/api/dashboard/stream/)
+    loop Live SSE Stream
+        DB->>Frontend: Real-time update deltas (JSON Event Stream)
     end
 ```
 
@@ -143,9 +143,11 @@ To handle high packet logging velocities, several database optimizations were im
 
 ## 5. Frontend (React & Vite) Architecture
 
-### A. Real-Time Dashboard Updating
+### A. Real-Time Dashboard Updating (Server-Sent Events)
 * The React dashboard relies on a `MonitoringProvider` state context (`front/src/context/monitoring-context.tsx`).
-* Every **1.0 second**, the client polls the backend to fetch unresolved alerts and throughput charts. This interval provides instantaneous updates during live simulation.
+* Instead of polling the server, the client establishes a single persistent **Server-Sent Events (SSE)** connection to `/api/dashboard/stream/`.
+* The connection automatically retrieves the initial snapshot of logs, unresolved alerts, statistics, and sniffer state. It then receives real-time delta updates pushed from the backend. This reduces API requests to zero after connection, improving routing responsiveness and lowering CPU/database overhead.
+* Incorporates client-side automatic reconnection logic with a 3-second recovery interval.
 
 ### B. Mobile LAN Accessibility & Reverse Proxy
 To enable access from mobile phones or external tablets connected to the same LAN (Wi-Fi):

@@ -112,58 +112,109 @@ export function MonitoringProvider({ children }: { children: React.ReactNode }) 
     }
   };
 
-  const fetchData = async () => {
-    try {
-      const [logsRes, alertsRes] = await Promise.all([
-        api.get("/traffic/?limit=50"),
-        api.get("/alerts/unresolved/"),
-      ]);
+  const mapLogsPayload = (logsData: any[]): TrafficLog[] => {
+    return logsData.map((l: any) => ({
+      id: l.id.toString(),
+      time: new Date(l.timestamp).getTime(),
+      protocol: mapProtocol(l.protocol.toString()),
+      sourceIp: l.src_ip,
+      sourcePort: l.src_port,
+      destIp: l.dst_ip,
+      destPort: l.dst_port,
+      status: (l.predicted_label || '').toUpperCase() === 'NORMAL' ? "Secure" : "Critical",
+      bytes: l.byte_count,
+      predictedLabel: l.predicted_label || 'NORMAL',
+    }));
+  };
 
-      // Handle both paginated and non-paginated responses
-      const logsData = logsRes.data.results || logsRes.data;
-      const alertsData = alertsRes.data.results || alertsRes.data;
-
-      const mappedLogs: TrafficLog[] = Array.isArray(logsData) ? logsData.map((l: any) => ({
-        id: l.id.toString(),
-        time: new Date(l.timestamp).getTime(),
-        protocol: mapProtocol(l.protocol.toString()),
-        sourceIp: l.src_ip,
-        sourcePort: l.src_port,
-        destIp: l.dst_ip,
-        destPort: l.dst_port,
-        status: (l.predicted_label || '').toUpperCase() === 'NORMAL' ? "Secure" : "Critical",
-        bytes: l.byte_count,
-        predictedLabel: l.predicted_label || 'NORMAL',
-      })) : [];
-
-      const mappedAlerts: ThreatAlert[] = Array.isArray(alertsData) ? alertsData.map((a: any) => ({
-        id: a.id.toString(),
-        time: new Date(a.timestamp).getTime(),
-        type: a.title,
-        description: a.description,
-        sourceIp: a.source_ip,
-        severity: a.severity.toLowerCase() as ThreatSeverity,
-      })) : [];
-
-      setLogs(mappedLogs);
-      setAlerts(mappedAlerts);
-    } catch (err) {
-      console.error("Failed to fetch monitoring data", err);
-    }
+  const mapAlertsPayload = (alertsData: any[]): ThreatAlert[] => {
+    return alertsData.map((a: any) => ({
+      id: a.id.toString(),
+      time: new Date(a.timestamp).getTime(),
+      type: a.title,
+      description: a.description,
+      sourceIp: a.source_ip,
+      severity: a.severity.toLowerCase() as ThreatSeverity,
+    }));
   };
 
   React.useEffect(() => {
-    fetchStatus();
-    fetchData();
-    fetchStats();
+    let eventSource: EventSource | null = null;
+    let reconnectTimeout: any = null;
 
-    const interval = setInterval(() => {
-      fetchData();
-      fetchStats();
-      fetchStatus();
-    }, 1000);
+    const connectSSE = () => {
+      eventSource = new EventSource("/api/dashboard/stream/", {
+        withCredentials: true,
+      });
 
-    return () => clearInterval(interval);
+      eventSource.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          
+          if (data.type === "init") {
+            setLogs(mapLogsPayload(data.logs || []));
+            setAlerts(mapAlertsPayload(data.alerts || []));
+            setPackets(data.stats.total_logs ?? 0);
+            setTotalBytes(data.stats.total_bytes ?? 0);
+            setRunning(data.sniffer.is_running ?? false);
+            setActiveInterface(data.sniffer.interface ?? null);
+            statsRef.current = { bytes: data.stats.total_bytes ?? 0, time: Date.now() };
+          } 
+          else if (data.type === "update") {
+            if (data.new_logs && data.new_logs.length > 0) {
+              setLogs((prev) => {
+                const mappedNew = mapLogsPayload(data.new_logs);
+                const combined = [...mappedNew, ...prev];
+                return combined.slice(0, 50);
+              });
+            }
+            if (data.new_alerts && data.new_alerts.length > 0) {
+              setAlerts((prev) => {
+                const mappedNew = mapAlertsPayload(data.new_alerts);
+                const combined = [...mappedNew, ...prev];
+                return combined.slice(0, 100);
+              });
+            }
+
+            const totalBytesVal = data.stats.total_bytes ?? 0;
+            const now = Date.now();
+            const previous = statsRef.current;
+            if (previous.time > 0) {
+              const elapsedSeconds = Math.max((now - previous.time) / 1000, 1);
+              const bytesDelta = Math.max(0, totalBytesVal - previous.bytes);
+              setKbps(Math.round(bytesDelta / 1024 / elapsedSeconds));
+            }
+            statsRef.current = { bytes: totalBytesVal, time: now };
+
+            setPackets(data.stats.total_logs ?? 0);
+            setTotalBytes(totalBytesVal);
+            setRunning(data.sniffer.is_running ?? false);
+            setActiveInterface(data.sniffer.interface ?? null);
+          }
+        } catch (err) {
+          console.error("Error parsing SSE message", err);
+        }
+      };
+
+      eventSource.onerror = (err) => {
+        console.error("SSE connection error, reconnecting in 3s...", err);
+        if (eventSource) {
+          eventSource.close();
+        }
+        reconnectTimeout = setTimeout(connectSSE, 3000);
+      };
+    };
+
+    connectSSE();
+
+    return () => {
+      if (eventSource) {
+        eventSource.close();
+      }
+      if (reconnectTimeout) {
+        clearTimeout(reconnectTimeout);
+      }
+    };
   }, []);
 
   React.useEffect(() => {

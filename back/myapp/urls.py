@@ -23,4 +23,5 @@ urlpatterns = [
     path('sniffer/status/', views.api_sniffer_status, name='sniffer_status'),
     path('sniffer/interfaces/', views.api_sniffer_interfaces, name='sniffer_interfaces'),
     path('sniffer/threshold/', views.api_sniffer_threshold, name='sniffer_threshold'),
+    path('dashboard/stream/', views.api_dashboard_stream, name='dashboard_stream'),
 ]

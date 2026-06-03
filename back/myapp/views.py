@@ -392,3 +392,99 @@ def api_sniffer_threshold(request):
         response = Response({'threshold': model_wrappers.get_anomaly_threshold()})
         response['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
         return response
+
+
+import json
+from django.http import StreamingHttpResponse
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def api_dashboard_stream(request):
+    """
+    Server-Sent Events (SSE) endpoint to stream real-time logs, unresolved alerts,
+    statistics, and sniffer status to the frontend.
+    """
+    def event_stream():
+        # Keep track of last sent IDs to send only deltas
+        last_log_id = TrafficLog.objects.aggregate(max_id=models.Max('id'))['max_id'] or 0
+        last_alert_id = Alert.objects.aggregate(max_id=models.Max('id'))['max_id'] or 0
+        
+        # Initial snapshot data
+        initial_logs = TrafficLog.objects.all().order_by('-timestamp')[:50]
+        unresolved_alerts = Alert.objects.filter(is_resolved=False).order_by('-timestamp')[:100]
+        total = TrafficLog.objects.count()
+        protocols = TrafficLog.objects.values_list('protocol', flat=True).distinct().count()
+        total_bytes = TrafficLog.objects.aggregate(total=models.Sum('byte_count'))['total'] or 0
+        sniffer_status = sniffer_manager.status()
+        
+        # Serialize initial data
+        from .serializers import TrafficLogSerializer, AlertSerializer
+        logs_serializer = TrafficLogSerializer(initial_logs, many=True)
+        alerts_serializer = AlertSerializer(unresolved_alerts, many=True)
+        
+        init_data = {
+            'type': 'init',
+            'logs': logs_serializer.data,
+            'alerts': alerts_serializer.data,
+            'stats': {
+                'total_logs': total,
+                'unique_protocols': protocols,
+                'total_bytes': total_bytes,
+            },
+            'sniffer': sniffer_status
+        }
+        
+        yield f"data: {json.dumps(init_data)}\n\n"
+        
+        last_stats_hash = (total, protocols, total_bytes)
+        last_sniffer_hash = (sniffer_status.get('is_running'), sniffer_status.get('interface'))
+        
+        # Keep connection alive and send deltas
+        while True:
+            time.sleep(1)
+            
+            # Check for new logs
+            new_logs = TrafficLog.objects.filter(id__gt=last_log_id).order_by('id')
+            new_alerts = Alert.objects.filter(id__gt=last_alert_id).order_by('id')
+            
+            log_list = []
+            if new_logs.exists():
+                last_log_id = new_logs.last().id
+                log_list = TrafficLogSerializer(new_logs, many=True).data
+                
+            alert_list = []
+            if new_alerts.exists():
+                last_alert_id = new_alerts.last().id
+                alert_list = AlertSerializer(new_alerts, many=True).data
+                
+            # Check stats
+            total = TrafficLog.objects.count()
+            protocols = TrafficLog.objects.values_list('protocol', flat=True).distinct().count()
+            total_bytes = TrafficLog.objects.aggregate(total=models.Sum('byte_count'))['total'] or 0
+            current_stats_hash = (total, protocols, total_bytes)
+            
+            # Check sniffer
+            current_sniffer = sniffer_manager.status()
+            current_sniffer_hash = (current_sniffer.get('is_running'), current_sniffer.get('interface'))
+            
+            if log_list or alert_list or current_stats_hash != last_stats_hash or current_sniffer_hash != last_sniffer_hash:
+                update_data = {
+                    'type': 'update',
+                    'new_logs': log_list,
+                    'new_alerts': alert_list,
+                    'stats': {
+                        'total_logs': total,
+                        'unique_protocols': protocols,
+                        'total_bytes': total_bytes,
+                    },
+                    'sniffer': current_sniffer
+                }
+                yield f"data: {json.dumps(update_data)}\n\n"
+                
+                last_stats_hash = current_stats_hash
+                last_sniffer_hash = current_sniffer_hash
+
+    response = StreamingHttpResponse(event_stream(), content_type='text/event-stream')
+    response['Cache-Control'] = 'no-cache'
+    response['X-Accel-Buffering'] = 'no'
+    return response
