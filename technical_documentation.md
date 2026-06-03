@@ -186,3 +186,22 @@ To test detection thresholds:
    curl https://www.google.com
    ```
    *Expected Outcome*: Classed as `normal` (Secure, Color: Green).
+
+### Troubleshooting Port Conflicts
+If you encounter `Error: That port is already in use` when starting either the Django API (port `8000`) or React dev server (port `8080` or `5173`), you can free up the port bindings using the following commands:
+
+#### On Linux:
+```bash
+# Terminate the process occupying port 8000 or 8080:
+fuser -k 8000/tcp
+fuser -k 8080/tcp
+```
+
+#### On Windows (PowerShell/CMD):
+```cmd
+# Find the PID (Process ID) occupying the port:
+netstat -aon | findstr :8000
+
+# Kill the process using the PID:
+taskkill /F /PID <PID>
+```
