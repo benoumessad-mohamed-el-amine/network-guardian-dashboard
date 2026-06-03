@@ -397,8 +397,8 @@ def api_sniffer_threshold(request):
 import json
 from django.http import StreamingHttpResponse
 
-@api_view(['GET'])
-@permission_classes([AllowAny])
+# Standard Django view to bypass Django REST Framework content negotiation,
+# which rejects 'Accept: text/event-stream' with HTTP 406 (Not Acceptable).
 def api_dashboard_stream(request):
     """
     Server-Sent Events (SSE) endpoint to stream real-time logs, unresolved alerts,
