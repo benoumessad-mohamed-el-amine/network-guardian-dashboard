@@ -45,6 +45,7 @@ interface MonitoringState {
   alerts: ThreatAlert[];
   series: TrafficPoint[];
   pendingAlerts: number;
+  resolveAlert: (id: string) => Promise<void>;
 }
 
 const Ctx = React.createContext<MonitoringState | null>(null);
@@ -65,6 +66,7 @@ export function MonitoringProvider({ children }: { children: React.ReactNode }) 
   const [uniqueProtocols, setUniqueProtocols] = React.useState(0);
   const [logs, setLogs] = React.useState<TrafficLog[]>([]);
   const [alerts, setAlerts] = React.useState<ThreatAlert[]>([]);
+  const [pendingAlerts, setPendingAlerts] = React.useState(0);
   const [series, setSeries] = React.useState<TrafficPoint[]>(() => {
     const arr: TrafficPoint[] = [];
     const now = Date.now();
@@ -158,6 +160,7 @@ export function MonitoringProvider({ children }: { children: React.ReactNode }) 
             setTotalBytes(data.stats.total_bytes ?? 0);
             setRunning(data.sniffer.is_running ?? false);
             setActiveInterface(data.sniffer.interface ?? null);
+            setPendingAlerts(data.stats.unresolved_alerts_count ?? (data.alerts || []).length);
             statsRef.current = { bytes: data.stats.total_bytes ?? 0, time: Date.now() };
           } 
           else if (data.type === "update") {
@@ -190,6 +193,7 @@ export function MonitoringProvider({ children }: { children: React.ReactNode }) 
             setTotalBytes(totalBytesVal);
             setRunning(data.sniffer.is_running ?? false);
             setActiveInterface(data.sniffer.interface ?? null);
+            setPendingAlerts(data.stats.unresolved_alerts_count ?? 0);
           }
         } catch (err) {
           console.error("Error parsing SSE message", err);
@@ -237,6 +241,17 @@ export function MonitoringProvider({ children }: { children: React.ReactNode }) 
     }
   };
 
+  const resolveAlert = async (id: string) => {
+    try {
+      await api.post(`/alerts/${id}/resolve/`);
+      setAlerts((prev) => prev.filter((a) => a.id !== id));
+      setPendingAlerts((prev) => Math.max(0, prev - 1));
+    } catch (err) {
+      console.error("Failed to resolve alert", err);
+      throw err;
+    }
+  };
+
   const value = React.useMemo<MonitoringState>(
     () => ({
       running,
@@ -248,9 +263,10 @@ export function MonitoringProvider({ children }: { children: React.ReactNode }) 
       logs,
       alerts,
       series,
-      pendingAlerts: alerts.length,
+      pendingAlerts,
+      resolveAlert,
     }),
-    [running, activeInterface, packets, kbps, totalBytes, logs, alerts, series]
+    [running, activeInterface, packets, kbps, totalBytes, logs, alerts, series, pendingAlerts]
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

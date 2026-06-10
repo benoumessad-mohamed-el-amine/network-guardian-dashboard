@@ -17,6 +17,7 @@ class DisableCsrfForAuthMiddleware:
             '/api/auth/user/',
             '/api/sniffer/start/',
             '/api/sniffer/stop/',
+            '/api/sniffer/threshold/',
         ]
     
     def __call__(self, request):

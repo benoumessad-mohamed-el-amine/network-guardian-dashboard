@@ -68,17 +68,16 @@ pip install -r requirements.txt
 # Run migrations
 python manage.py migrate
 
-# Start the development server
-python manage.py runserver
+# Start the development server (Run with sudo to enable Scapy packet sniffing)
+sudo venv/bin/python manage.py runserver
 ```
 The API is now running at `http://127.0.0.1:8000/`.
 
 > [!IMPORTANT]
 > **Packet Sniffing Privileges on Linux:**
-> Sniffing live network packets (including WiFi sniffing) requires access to raw sockets. You must run the sniffer command or activate the virtual environment and run with root/sudo privileges:
+> Sniffing live network packets (including WiFi sniffing) requires access to raw sockets. Therefore, you must start the Django development server using the virtual environment's python with root (`sudo`) privileges:
 > ```bash
-> # Run sniffer on wireless interface wlan0
-> sudo venv/bin/python manage.py sniff --interface wlan0
+> sudo venv/bin/python manage.py runserver
 > ```
 
 ### 2. Frontend React Setup

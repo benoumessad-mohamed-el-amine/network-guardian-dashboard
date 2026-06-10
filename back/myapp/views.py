@@ -415,6 +415,7 @@ def api_dashboard_stream(request):
         total = TrafficLog.objects.count()
         protocols = TrafficLog.objects.values_list('protocol', flat=True).distinct().count()
         total_bytes = TrafficLog.objects.aggregate(total=models.Sum('byte_count'))['total'] or 0
+        unresolved_alerts_count = Alert.objects.filter(is_resolved=False).count()
         sniffer_status = sniffer_manager.status()
         
         # Serialize initial data
@@ -430,13 +431,14 @@ def api_dashboard_stream(request):
                 'total_logs': total,
                 'unique_protocols': protocols,
                 'total_bytes': total_bytes,
+                'unresolved_alerts_count': unresolved_alerts_count,
             },
             'sniffer': sniffer_status
         }
         
         yield f"data: {json.dumps(init_data)}\n\n"
         
-        last_stats_hash = (total, protocols, total_bytes)
+        last_stats_hash = (total, protocols, total_bytes, unresolved_alerts_count)
         last_sniffer_hash = (sniffer_status.get('is_running'), sniffer_status.get('interface'))
         
         # Keep connection alive and send deltas
@@ -461,7 +463,8 @@ def api_dashboard_stream(request):
             total = TrafficLog.objects.count()
             protocols = TrafficLog.objects.values_list('protocol', flat=True).distinct().count()
             total_bytes = TrafficLog.objects.aggregate(total=models.Sum('byte_count'))['total'] or 0
-            current_stats_hash = (total, protocols, total_bytes)
+            unresolved_alerts_count = Alert.objects.filter(is_resolved=False).count()
+            current_stats_hash = (total, protocols, total_bytes, unresolved_alerts_count)
             
             # Check sniffer
             current_sniffer = sniffer_manager.status()
@@ -476,6 +479,7 @@ def api_dashboard_stream(request):
                         'total_logs': total,
                         'unique_protocols': protocols,
                         'total_bytes': total_bytes,
+                        'unresolved_alerts_count': unresolved_alerts_count,
                     },
                     'sniffer': current_sniffer
                 }

@@ -231,27 +231,27 @@ class HierarchicalIDSClassifier(BaseModel):
         # 4. Tier 2: ALWAYS run all specialized classifiers regardless of Tier 1
         #    The specialist models are authoritative for their attack types.
         positives: Dict[str, float] = {}
+        threshold = get_anomaly_threshold()
 
         if self.synflood_model is not None:
             pred = self.synflood_model.predict(X_scaled)[0]
             probs = self.synflood_model.predict_proba(X_scaled)[0]
             score = float(probs[1]) if len(probs) > 1 else float(probs[0])
-            if pred == 1:
+            if pred == 1 and score >= threshold:
                 positives['sync flood'] = score
-
 
         if self.ddos_model is not None:
             pred = self.ddos_model.predict(X_scaled)[0]
             probs = self.ddos_model.predict_proba(X_scaled)[0]
             score = float(probs[1]) if len(probs) > 1 else float(probs[0])
-            if pred == 1:
+            if pred == 1 and score >= threshold:
                 positives['ddos'] = score
 
         if self.portscan_model is not None:
             pred = self.portscan_model.predict(X_scaled)[0]
             probs = self.portscan_model.predict_proba(X_scaled)[0]
             score = float(probs[1]) if len(probs) > 1 else float(probs[0])
-            if pred == 1:
+            if pred == 1 and score >= threshold:
                 positives['portscan'] = score
 
         # 5. Decision logic:
@@ -262,8 +262,6 @@ class HierarchicalIDSClassifier(BaseModel):
             best_label = max(positives, key=positives.get)
             best_score = positives[best_label]
             return InferenceResult(label=best_label, score=best_score, features=features)
-
-        threshold = get_anomaly_threshold()
         if anomaly_score >= threshold:
             # Tier 1 says anomalous but no specialist claimed it
             return InferenceResult(label='unknown', score=anomaly_score, features=features)

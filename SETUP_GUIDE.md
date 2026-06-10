@@ -31,9 +31,10 @@ pip install django djangorestframework django-cors-headers
 python manage.py migrate
 ```
 
-### 5. Start the backend server
+### 5. Start the backend server (with Packet Sniffing privileges)
+Start the server using `sudo` with the virtual environment Python to allow Scapy to bind to raw sockets for packet capture:
 ```bash
-python manage.py runserver
+sudo venv/bin/python manage.py runserver
 ```
 
 The backend will be available at `http://localhost:8000`
@@ -103,7 +104,7 @@ The frontend will be available at `http://localhost:5173`
 **Terminal 1 (Backend):**
 ```bash
 cd back
-python manage.py runserver
+sudo venv/bin/python manage.py runserver
 ```
 
 **Terminal 2 (Frontend):**

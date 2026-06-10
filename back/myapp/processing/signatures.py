@@ -474,7 +474,17 @@ class SignatureEngine:
         else:
             volume_scale = 1.0
 
-        scale = time_scale * volume_scale
+        # Anomaly threshold scaling:
+        # A higher threshold means we want less noise, which raises packet limits.
+        # A lower threshold means we want high sensitivity, which lowers limits.
+        try:
+            from .model_wrappers import get_anomaly_threshold
+            user_threshold = get_anomaly_threshold()
+            threshold_scale = user_threshold / 0.85
+        except Exception:
+            threshold_scale = 1.0
+
+        scale = time_scale * volume_scale * threshold_scale
 
         return {
             'portscan': max(4, int(10 * scale)),

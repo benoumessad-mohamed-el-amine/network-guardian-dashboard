@@ -9,6 +9,8 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
+import { useMonitoring } from "@/context/monitoring-context";
+import { useAuth } from "@/context/auth-context";
 import type { ThreatAlert } from "@/context/monitoring-context";
 
 const fmtTime = (t: number) =>
@@ -22,6 +24,9 @@ const sevColor: Record<string, string> = {
 
 export function AlertFeed({ alerts, limit }: { alerts: ThreatAlert[]; limit?: number }) {
   const [active, setActive] = React.useState<ThreatAlert | null>(null);
+  const [isResolving, setIsResolving] = React.useState(false);
+  const { resolveAlert } = useMonitoring();
+  const { user } = useAuth();
   const items = limit ? alerts.slice(0, limit) : alerts;
 
   return (
@@ -105,6 +110,28 @@ export function AlertFeed({ alerts, limit }: { alerts: ThreatAlert[]; limit?: nu
                   <dd className="font-mono text-xs">{active.id}</dd>
                 </div>
               </dl>
+
+              {user?.is_staff && (
+                <div className="mt-8 flex justify-end">
+                  <Button
+                    disabled={isResolving}
+                    onClick={async () => {
+                      setIsResolving(true);
+                      try {
+                        await resolveAlert(active.id);
+                        setActive(null);
+                      } catch (err) {
+                        console.error("Failed to resolve alert:", err);
+                      } finally {
+                        setIsResolving(false);
+                      }
+                    }}
+                    className="w-full bg-success hover:bg-success/90 text-white font-medium text-xs rounded-lg py-2.5"
+                  >
+                    {isResolving ? "Resolving..." : "Resolve Incident"}
+                  </Button>
+                </div>
+              )}
             </>
           )}
         </SheetContent>
